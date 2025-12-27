@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPTV Personal Player</title>
+    <script src="https://cdn.jsdelivr.net/npm/shaka-player@4.3.5/dist/shaka-player.ui.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shaka-player@4.3.5/dist/controls.css">
+    <style>
+        body { margin: 0; background: #000; color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+        #app-container { display: flex; height: 100vh; width: 100vw; }
+        
+        /* Danh sách kênh bên trái */
+        #sidebar { 
+            width: 300px; 
+            background: rgba(20, 20, 20, 0.95); 
+            overflow-y: auto; 
+            border-right: 1px solid #333;
+            z-index: 10;
+        }
+        .sidebar-header { padding: 20px; background: #0078d4; font-weight: bold; font-size: 1.2em; }
+        
+        /* Từng mục kênh */
+        .channel-item { 
+            padding: 15px 20px; 
+            cursor: pointer; 
+            border-bottom: 1px solid #222; 
+            transition: 0.2s;
+            font-size: 0.95em;
+        }
+        .channel-item:hover { background: #333; }
+        .channel-item.active { background: #1a4a72; border-left: 5px solid #0078d4; }
+
+        /* Vùng phát video */
+        #video-wrapper { flex: 1; position: relative; background: #000; }
+        .shaka-video-container { width: 100%; height: 100%; }
+        
+        /* Ẩn thanh cuộn */
+        #sidebar::-webkit-scrollbar { width: 5px; }
+        #sidebar::-webkit-scrollbar-thumb { background: #444; }
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+    <div id="sidebar">
+        <div class="sidebar-header">DANH SÁCH KÊNH</div>
+        <div id="channel-list">Đang tải dữ liệu...</div>
+    </div>
+    
+    <div id="video-wrapper" data-shaka-player-container>
+        <video data-shaka-player id="video" style="width:100%; height:100%;" autoplay></video>
+    </div>
+</div>
+
+<script>
+    // Link danh sách IPTV của bạn
+    const m3uUrl = 'https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123';
+    
+    // Thông tin giải mã ClearKey cho HBO
+    const clearKeyConfig = {
+        '09ddfe3d63863cafaeb79d0546b098ab': '3de0f38dcf014827dfd5bec38743c6a2'
+    };
+
+    async function initApp() {
+        const video = document.getElementById('video');
+        const ui = video['ui'];
+        const controls = ui.getControls();
+        const player = controls.getPlayer();
+
+        // Xử lý lỗi
+        player.addEventListener('error', (event) => console.error('Lỗi trình phát:', event.detail));
+
+        try {
+            const response = await fetch(m3uUrl);
+            const data = await response.text();
+            parseAndDisplayChannels(data, player);
+        } catch (error) {
+            document.getElementById('channel-list').innerText = 'Không thể tải danh sách kênh.';
+        }
+    }
+
+    function parseAndDisplayChannels(data, player) {
+        const lines = data.split('\n');
+        const listContainer = document.getElementById('channel-list');
+        listContainer.innerHTML = '';
+
+        let currentName = '';
+        
+        lines.forEach(line => {
+            line = line.trim();
+            if (line.startsWith('#EXTINF')) {
+                // Lấy tên kênh sau dấu phẩy
+                currentName = line.split(',')[1] || 'Kênh không tên';
+            } else if (line.startsWith('http')) {
+                const channelUrl = line;
+                const channelName = currentName;
+
+                const div = document.createElement('div');
+                div.className = 'channel-item';
+                div.innerText = channelName;
+
+                div.onclick = async () => {
+                    // Cập nhật trạng thái Active
+                    document.querySelectorAll('.channel-item').forEach(el => el.classList.remove('active'));
+                    div.classList.add('active');
+
+                    // Cấu hình DRM nếu là kênh HBO (hoặc kiểm tra file .mpd)
+                    if (channelUrl.includes('hbo') || channelUrl.endsWith('.mpd')) {
+                        player.configure({ drm: { clearKeys: clearKeyConfig } });
+                    } else {
+                        // Reset DRM cho các kênh thường (.m3u8)
+                        player.configure({ drm: { clearKeys: {} } });
+                    }
+
+                    try {
+                        await player.load(channelUrl);
+                        console.log('Đang phát:', channelName);
+                    } catch (e) {
+                        alert('Kênh này hiện không khả dụng.');
+                    }
+                };
+                listContainer.appendChild(div);
+            }
+        });
+    }
+
+    document.addEventListener('shaka-ui-loaded', initApp);
+</script>
+
+</body>
+</html>
