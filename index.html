@@ -1,45 +1,51 @@
 <!DOCTYPE html>
-<html lang="vn">
+<html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IPTV ULTIMATE PRO</title>
+    <title>TRÌNH PHÁT IPTV CHUYÊN NGHIỆP</title>
     <script src="https://cdn.jsdelivr.net/npm/shaka-player@4.3.5/dist/shaka-player.ui.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shaka-player@4.3.5/dist/controls.css">
     <style>
-        body { margin: 0; background: #000; color: #fff; font-family: 'Segoe UI', sans-serif; display: flex; height: 100vh; overflow: hidden; }
+        body { margin: 0; background: #000; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; height: 100vh; overflow: hidden; }
         
-        /* Left Sidebar */
+        /* Thanh bên trái (Danh sách kênh) */
         #sidebar { width: 320px; background: #111; border-right: 1px solid #222; display: flex; flex-direction: column; }
         
-        /* Category / Menu Header */
-        .menu-header { padding: 15px; background: #1a1a1a; border-bottom: 2px solid #0084ff; text-align: center; }
+        /* Header Danh mục */
+        .menu-header { padding: 15px; background: #1a1a1a; border-bottom: 2px solid #e91e63; text-align: center; }
         .all-channels-btn { 
-            background: #0084ff; color: white; border: none; padding: 10px 20px; 
-            border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%;
+            background: #e91e63; color: white; border: none; padding: 10px 20px; 
+            border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; font-size: 14px;
+            text-transform: uppercase;
         }
-        .all-channels-btn:hover { background: #0056b3; }
+        .all-channels-btn:hover { background: #ad1457; }
 
-        #channel-list { flex: 1; overflow-y: auto; }
+        #channel-list { flex: 1; overflow-y: auto; background: #0a0a0a; }
         .channel-item { display: flex; align-items: center; padding: 12px; cursor: pointer; border-bottom: 1px solid #1a1a1a; transition: 0.2s; }
         .channel-item:hover { background: #222; }
-        .channel-item.active { background: #004a99; border-left: 4px solid #fff; }
+        .channel-item.active { background: #311b92; border-left: 5px solid #e91e63; }
         
-        .channel-logo { width: 55px; height: 32px; object-fit: contain; margin-right: 12px; background: #000; border-radius: 4px; }
-        .channel-name { font-size: 14px; font-weight: 500; }
+        /* Logo Kênh */
+        .channel-logo { width: 60px; height: 35px; object-fit: contain; margin-right: 12px; background: #000; border-radius: 4px; padding: 2px; }
+        .channel-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        /* Main Video Area */
+        /* Vùng phát Video */
         #main-content { flex: 1; position: relative; background: #000; }
         video { width: 100%; height: 100%; }
+
+        /* Tùy chỉnh thanh cuộn */
+        #channel-list::-webkit-scrollbar { width: 6px; }
+        #channel-list::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
     </style>
 </head>
 <body>
 
 <div id="sidebar">
     <div class="menu-header">
-        <button class="all-channels-btn" onclick="scrollToTop()">ALL CHANNELS</button>
+        <button class="all-channels-btn" onclick="scrollToTop()">Tất Cả Kênh</button>
     </div>
-    <div id="channel-list">Loading Playlist...</div>
+    <div id="channel-list">Đang tải danh sách...</div>
 </div>
 
 <div id="main-content" data-shaka-player-container>
@@ -47,8 +53,13 @@
 </div>
 
 <script>
+    // Link file m3u từ GitHub của bạn
     const M3U_SOURCE = 'https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123?v=' + Date.now();
-    const DRM_CONFIG = { '09ddfe3d63863cafaeb79d0546b098ab': '3de0f38dcf014827dfd5bec38743c6a2' };
+    
+    // Key giải mã cho HBO và các kênh ClearKey
+    const DRM_CONFIG = { 
+        '09ddfe3d63863cafaeb79d0546b098ab': '3de0f38dcf014827dfd5bec38743c6a2' 
+    };
 
     let playerInstance;
 
@@ -57,13 +68,14 @@
         const ui = video['ui'];
         playerInstance = ui.getControls().getPlayer();
 
-        // Optimized for Speed & AutoPlay
+        // Cấu hình tối ưu tốc độ và ClearKey
         playerInstance.configure({
             drm: { clearKeys: DRM_CONFIG },
             streaming: {
                 rebufferingGoal: 1,
                 bufferingGoal: 5,
-                lowLatencyMode: true
+                lowLatencyMode: true,
+                jumpLargeGaps: true
             }
         });
 
@@ -72,7 +84,7 @@
             const m3uText = await response.text();
             parsePlaylist(m3uText);
         } catch (e) {
-            document.getElementById('channel-list').innerText = "Load Failed!";
+            document.getElementById('channel-list').innerText = "Lỗi: Không thể tải danh sách kênh!";
         }
     }
 
@@ -84,21 +96,27 @@
         let isFirstChannel = true;
 
         lines.forEach(line => {
-            if (line.includes('#EXTINF')) {
+            line = line.trim();
+            if (line.startsWith('#EXTINF')) {
+                // Lấy Logo và Tên kênh
                 const logoMatch = line.match(/tvg-logo="([^"]+)"/i);
+                const namePart = line.split(',')[1];
                 tempMeta.logo = logoMatch ? logoMatch[1] : '';
-                tempMeta.name = line.split(',')[1] || 'Unknown';
+                tempMeta.name = namePart ? namePart.trim() : 'Kênh không tên';
             } else if (line.startsWith('http')) {
-                const url = line.trim();
+                const url = line;
                 const btn = document.createElement('div');
                 btn.className = 'channel-item';
-                btn.innerHTML = `<img class="channel-logo" src="${tempMeta.logo || 'https://via.placeholder.com/55x32?text=TV'}">
+                
+                // Hiển thị Logo (nếu không có sẽ dùng ảnh mặc định)
+                const logoUrl = tempMeta.logo || 'https://via.placeholder.com/60x35/1a1a1a/ffffff?text=TV';
+                btn.innerHTML = `<img class="channel-logo" src="${logoUrl}" onerror="this.src='https://via.placeholder.com/60x35/1a1a1a/ffffff?text=TV'">
                                  <span class="channel-name">${tempMeta.name}</span>`;
                 
                 btn.onclick = () => playStream(url, btn);
                 listContainer.appendChild(btn);
 
-                // AUTO-PLAY FIRST CHANNEL
+                // TỰ ĐỘNG PHÁT KÊNH ĐẦU TIÊN
                 if (isFirstChannel) {
                     playStream(url, btn);
                     isFirstChannel = false;
@@ -110,15 +128,15 @@
     }
 
     async function playStream(url, element) {
+        // Cập nhật trạng thái chọn kênh
         document.querySelectorAll('.channel-item').forEach(i => i.classList.remove('active'));
         element.classList.add('active');
 
         try {
-            await playerInstance.unload();
-            await playerInstance.load(url);
-            console.log("Playing:", url);
+            await playerInstance.unload(); // Giải phóng kênh cũ
+            await playerInstance.load(url); // Tải kênh mới
         } catch (e) {
-            console.error("Playback error");
+            console.error("Lỗi phát luồng:", e);
         }
     }
 
