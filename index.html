@@ -2,31 +2,30 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IPTV PLAYER - PHIÊN BẢN GIẢI MÃ IP</title>
+    <title>IPTV VIỆT NAM - TỰ ĐỘNG CẬP NHẬT TOKEN</title>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/shaka-player@4.3.5/dist/shaka-player.ui.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shaka-player@4.3.5/dist/controls.css">
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: sans-serif; display: flex; height: 100vh; overflow: hidden; }
         #sidebar { width: 300px; background: #111; border-right: 1px solid #333; display: flex; flex-direction: column; }
-        .menu-header { padding: 15px; background: #1a1a1a; border-bottom: 2px solid #00c853; text-align: center; }
-        .all-channels-btn { background: #00c853; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; }
+        .header { padding: 15px; background: #d32f2f; text-align: center; font-weight: bold; font-size: 16px; }
         #channel-list { flex: 1; overflow-y: auto; }
-        .channel-item { display: flex; align-items: center; padding: 10px; cursor: pointer; border-bottom: 1px solid #222; }
-        .channel-item.active { background: #1b5e20; border-left: 5px solid #00c853; }
-        .channel-logo { width: 55px; height: 32px; object-fit: contain; margin-right: 10px; background: #000; border-radius: 3px; }
-        #video-container { flex: 1; position: relative; background: #000; }
+        .channel-item { display: flex; align-items: center; padding: 12px; cursor: pointer; border-bottom: 1px solid #222; }
+        .channel-item.active { background: #1a237e; border-left: 5px solid #ffeb3b; }
+        .channel-logo { width: 50px; height: 30px; object-fit: contain; margin-right: 12px; background: #000; border-radius: 3px; }
+        #main-player { flex: 1; background: #000; position: relative; }
         video { width: 100%; height: 100%; }
     </style>
 </head>
 <body>
 
 <div id="sidebar">
-    <div class="menu-header"><button class="all-channels-btn" onclick="location.reload()">LÀM MỚI DANH SÁCH</button></div>
-    <div id="channel-list">Đang kết nối luồng...</div>
+    <div class="header">DANH SÁCH IPTV</div>
+    <div id="channel-list">Đang kết nối...</div>
 </div>
-<div id="video-container" data-shaka-player-container>
+
+<div id="main-player" data-shaka-player-container>
     <video data-shaka-player id="video" autoplay controls></video>
 </div>
 
@@ -34,29 +33,28 @@
     const M3U_URL = 'https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123?v=' + Date.now();
     const DRM_KEYS = { '09ddfe3d63863cafaeb79d0546b098ab': '3de0f38dcf014827dfd5bec38743c6a2' };
 
-    let hlsInstance;
-    let shakaInstance;
+    let hls;
 
     async function init() {
         const video = document.getElementById('video');
         const ui = video['ui'];
-        shakaInstance = ui.getControls().getPlayer();
+        const player = ui.getControls().getPlayer();
 
-        shakaInstance.configure({
+        player.configure({
             drm: { clearKeys: DRM_KEYS },
-            streaming: { lowLatencyMode: true }
+            streaming: { lowLatencyMode: true, jumpLargeGaps: true }
         });
 
         try {
             const res = await fetch(M3U_URL);
-            const data = await res.text();
-            render(data);
-        } catch (e) { document.getElementById('channel-list').innerText = "Lỗi tải playlist!"; }
+            const text = await res.text();
+            parseM3U(text, player, video);
+        } catch (e) { document.getElementById('channel-list').innerText = "Lỗi tải file!"; }
     }
 
-    function render(data) {
-        const list = document.getElementById('channel-list');
-        list.innerHTML = '';
+    function parseM3U(data, player, video) {
+        const container = document.getElementById('channel-list');
+        container.innerHTML = '';
         const lines = data.split('\n');
         let meta = {};
         let first = true;
@@ -65,20 +63,21 @@
             if (line.includes('#EXTINF')) {
                 const logo = line.match(/tvg-logo="([^"]+)"/i);
                 meta.logo = logo ? logo[1] : '';
-                meta.name = line.split(',')[1] || 'Kênh IP';
+                meta.name = line.split(',')[1] || 'Kênh TV';
             } else if (line.startsWith('http')) {
                 const url = line.trim();
                 const div = document.createElement('div');
                 div.className = 'channel-item';
-                div.innerHTML = `<img class="channel-logo" src="${meta.logo || 'https://via.placeholder.com/55x32?text=IP'}"> <span>${meta.name}</span>`;
-                div.onclick = () => play(url, div);
-                list.appendChild(div);
-                if (first) { play(url, div); first = false; }
+                div.innerHTML = `<img class="channel-logo" src="${meta.logo}"> <span>${meta.name}</span>`;
+                div.onclick = () => play(url, player, video, div);
+                container.appendChild(div);
+
+                if (first) { play(url, player, video, div); first = false; }
                 meta = {};
             }
         });
     }
 
-    async function play(url, el) {
-        const video = document.
+    async function play(url, player, video, el) {
+        document.querySelectorAll('.channel-item').forEach(
 
