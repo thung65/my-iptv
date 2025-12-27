@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vn">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -100,5 +100,34 @@
 
                 // AUTO-PLAY FIRST CHANNEL
                 if (isFirstChannel) {
-                    playStream(url
+                    playStream(url, btn);
+                    isFirstChannel = false;
+                }
 
+                tempMeta = {};
+            }
+        });
+    }
+
+    async function playStream(url, element) {
+        document.querySelectorAll('.channel-item').forEach(i => i.classList.remove('active'));
+        element.classList.add('active');
+
+        try {
+            await playerInstance.unload();
+            await playerInstance.load(url);
+            console.log("Playing:", url);
+        } catch (e) {
+            console.error("Playback error");
+        }
+    }
+
+    function scrollToTop() {
+        document.getElementById('channel-list').scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    document.addEventListener('shaka-ui-loaded', initPlayer);
+</script>
+
+</body>
+</html>
