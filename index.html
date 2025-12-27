@@ -1,117 +1,174 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IPTV Web Player - Pro</title>
+    <title>Premium IPTV Web Interface</title>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/shaka-player@4.3.5/dist/shaka-player.ui.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shaka-player@4.3.5/dist/controls.css">
     <style>
-        body { margin: 0; background: #000; color: white; font-family: sans-serif; display: flex; height: 100vh; overflow: hidden; }
-        #sidebar { width: 280px; background: #111; border-right: 1px solid #333; overflow-y: auto; z-index: 10; }
-        #main { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; }
-        .channel-item { padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #222; font-size: 14px; }
-        .channel-item:hover { background: #333; }
-        .active { background: #0078d4 !important; font-weight: bold; }
-        #video { width: 100%; height: 100%; background: #000; }
-        .header { padding: 15px; background: #222; font-weight: bold; color: #0078d4; border-bottom: 1px solid #333; }
+        body { margin: 0; background: #050505; color: #ffffff; font-family: 'Segoe UI', Roboto, sans-serif; display: flex; height: 100vh; overflow: hidden; }
+        
+        /* Sidebar styling */
+        #sidebar { width: 350px; background: #121212; border-right: 1px solid #282828; display: flex; flex-direction: column; }
+        .sidebar-header { padding: 25px; font-size: 1.4em; font-weight: 700; color: #0084ff; border-bottom: 1px solid #282828; text-align: center; letter-spacing: 1px; }
+        
+        #channel-list { flex: 1; overflow-y: auto; padding: 10px 0; }
+        
+        /* Channel Item with Logo */
+        .channel-item { 
+            display: flex; 
+            align-items: center; 
+            padding: 12px 20px; 
+            cursor: pointer; 
+            border-bottom: 1px solid #1a1a1a; 
+            transition: all 0.3s ease;
+        }
+        .channel-item:hover { background: #252525; }
+        .channel-item.active { background: #004a99 !important; border-left: 5px solid #0084ff; }
+        
+        .channel-logo { 
+            width: 60px; 
+            height: 35px; 
+            object-fit: contain; 
+            margin-right: 15px; 
+            background: #1a1a1a;
+            border-radius: 5px;
+            padding: 2px;
+        }
+        .channel-name { font-size: 0.95em; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* Video Area */
+        #video-container { flex: 1; background: #000; position: relative; display: flex; align-items: center; justify-content: center; }
+        video { width: 100%; height: 100%; }
+
+        /* Custom Scrollbar */
+        #channel-list::-webkit-scrollbar { width: 6px; }
+        #channel-list::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
     </style>
 </head>
 <body>
 
 <div id="sidebar">
-    <div class="header">DANH SÁCH KÊNH</div>
-    <div id="list">Đang tải playlist...</div>
+    <div class="sidebar-header">IPTV MONITOR</div>
+    <div id="channel-list">Syncing Playlist...</div>
 </div>
 
-<div id="main" data-shaka-player-container>
+<div id="video-container" data-shaka-player-container>
     <video data-shaka-player id="video" autoplay></video>
 </div>
 
 <script>
-    const playlistUrl = 'https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123';
-    const clearKeyID = '09ddfe3d63863cafaeb79d0546b098ab';
-    const clearKey = '3de0f38dcf014827dfd5bec38743c6a2';
+    // Link to your M3U file on GitHub
+    const M3U_SOURCE = 'https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123';
+    
+    // ClearKey for HBO and secured channels
+    const KEY_SYSTEM = { 
+        '09ddfe3d63863cafaeb79d0546b098ab': '3de0f38dcf014827dfd5bec38743c6a2' 
+    };
 
-    let shakaPlayer;
-    let hlsInstance;
+    let hlsInstance = null;
 
-    async function init() {
+    async function setupApp() {
         const video = document.getElementById('video');
         const ui = video['ui'];
-        shakaPlayer = ui.getControls().getPlayer();
+        const player = ui.getControls().getPlayer();
 
-        // Tải danh sách kênh
+        // DRM Configuration
+        player.configure({
+            drm: { clearKeys: KEY_SYSTEM },
+            streaming: { lowLatencyMode: true, rebufferingGoal: 2 }
+        });
+
+        // Fetch and Parse Playlist
         try {
-            const res = await fetch(playlistUrl);
-            const text = await res.text();
-            renderChannels(text);
-        } catch (e) {
-            document.getElementById('list').innerHTML = "Lỗi tải playlist!";
+            const response = await fetch(M3U_SOURCE);
+            const m3uData = await response.text();
+            buildUI(m3uData, player, video);
+        } catch (err) {
+            document.getElementById('channel-list').innerText = "Network Error: Check M3U Link.";
         }
     }
 
-    function renderChannels(data) {
+    function buildUI(data, player, video) {
+        const listBody = document.getElementById('channel-list');
+        listBody.innerHTML = '';
         const lines = data.split('\n');
-        const listDiv = document.getElementById('list');
-        listDiv.innerHTML = '';
-        let currentTitle = '';
+        
+        let tempMeta = {};
 
         lines.forEach(line => {
+            line = line.trim();
             if (line.startsWith('#EXTINF')) {
-                currentTitle = line.split(',')[1] || "Kênh không tên";
+                // Parse Logo and Name from M3U line
+                const logoMatch = line.match(/tvg-logo="([^"]+)"/i);
+                const namePart = line.split(',')[1];
+                tempMeta.logo = logoMatch ? logoMatch[1] : '';
+                tempMeta.name = namePart ? namePart.trim() : 'Unnamed Stream';
             } else if (line.startsWith('http')) {
-                const url = line.trim();
-                const btn = document.createElement('div');
-                btn.className = 'channel-item';
-                btn.innerText = currentTitle;
-                btn.onclick = () => play(url, btn);
-                listDiv.appendChild(btn);
+                const streamUrl = line;
+                const channelName = tempMeta.name;
+                const channelLogo = tempMeta.logo;
+
+                const card = document.createElement('div');
+                card.className = 'channel-item';
+                
+                // Logo element
+                const icon = document.createElement('img');
+                icon.className = 'channel-logo';
+                // Placeholder if logo is missing
+                icon.src = channelLogo || 'https://via.placeholder.com/60x35/1a1a1a/0084ff?text=TV';
+                icon.onerror = () => { icon.src = 'https://via.placeholder.com/60x35/1a1a1a/555?text=No+Logo'; };
+
+                const label = document.createElement('span');
+                label.className = 'channel-name';
+                label.innerText = channelName;
+
+                card.appendChild(icon);
+                card.appendChild(label);
+                
+                card.onclick = () => playStream(streamUrl, player, video, card);
+                listBody.appendChild(card);
+                tempMeta = {}; // Clean for next entry
             }
         });
     }
 
-    async function play(url, element) {
-        const video = document.getElementById('video');
-        
-        // Reset trạng thái
-        document.querySelectorAll('.channel-item').forEach(d => d.classList.remove('active'));
+    async function playStream(url, player, video, element) {
+        // Update UI state
+        document.querySelectorAll('.channel-item').forEach(i => i.classList.remove('active'));
         element.classList.add('active');
+        
+        // Clear previous stream
         if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
+        video.pause();
         video.src = '';
 
-        // Phân loại xử lý
+        // Play Logic
         if (url.includes('.mpd')) {
-            // Cấu hình DRM cho file MPD
-            shakaPlayer.configure({
-                drm: { clearKeys: { [clearKeyID]: clearKey } }
-            });
-            try {
-                await shakaPlayer.load(url);
-            } catch (e) { alert("Lỗi MPD: " + e.code); }
-        } 
-        else if (url.includes('.m3u8')) {
-            // Hỗ trợ HLS (m3u8)
+            // Dash/DRM support
+            try { await player.load(url); } catch (e) { console.error("DASH Load Failed", e); }
+        } else if (url.includes('.m3u8')) {
+            // HLS support
             if (Hls.isSupported()) {
                 hlsInstance = new Hls();
                 hlsInstance.loadSource(url);
                 hlsInstance.attachMedia(video);
                 hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => video.play());
             } else {
-                video.src = url; // Dành cho Safari/iOS
+                video.src = url;
+                video.play();
             }
-        }
-        else {
-            // Link video thường (mp4, v.v.)
+        } else {
+            // Direct MP4 or others
             video.src = url;
             video.play();
         }
     }
 
-    document.addEventListener('shaka-ui-loaded', init);
+    document.addEventListener('shaka-ui-loaded', setupApp);
 </script>
-
 </body>
 </html>
 
