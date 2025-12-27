@@ -2,100 +2,103 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>ULTIMATE IPTV GATEWAY</title>
-    <link href="https://vjs.zencdn.net/8.3.0/video-js.css" rel="stylesheet" />
-    <script src="https://vjs.zencdn.net/8.3.0/video.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPTV ULTIMATE PRO</title>
+    <script src="https://cdn.jsdelivr.net/npm/shaka-player@4.3.5/dist/shaka-player.ui.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shaka-player@4.3.5/dist/controls.css">
     <style>
-        body { margin: 0; background: #000; color: #fff; font-family: sans-serif; display: flex; height: 100vh; overflow: hidden; }
-        #sidebar { width: 300px; background: #111; border-right: 1px solid #333; display: flex; flex-direction: column; }
-        .sidebar-header { padding: 20px; font-weight: bold; color: #0084ff; border-bottom: 1px solid #333; text-align: center; }
+        body { margin: 0; background: #000; color: #fff; font-family: 'Segoe UI', sans-serif; display: flex; height: 100vh; overflow: hidden; }
+        
+        /* Left Sidebar */
+        #sidebar { width: 320px; background: #111; border-right: 1px solid #222; display: flex; flex-direction: column; }
+        
+        /* Category / Menu Header */
+        .menu-header { padding: 15px; background: #1a1a1a; border-bottom: 2px solid #0084ff; text-align: center; }
+        .all-channels-btn { 
+            background: #0084ff; color: white; border: none; padding: 10px 20px; 
+            border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%;
+        }
+        .all-channels-btn:hover { background: #0056b3; }
+
         #channel-list { flex: 1; overflow-y: auto; }
-        .channel-item { display: flex; align-items: center; padding: 12px; cursor: pointer; border-bottom: 1px solid #222; }
+        .channel-item { display: flex; align-items: center; padding: 12px; cursor: pointer; border-bottom: 1px solid #1a1a1a; transition: 0.2s; }
         .channel-item:hover { background: #222; }
-        .channel-item.active { background: #005a9e !important; }
-        .channel-logo { width: 50px; height: 35px; object-fit: contain; margin-right: 12px; background: #000; border-radius: 4px; }
-        #video-container { flex: 1; display: flex; align-items: center; justify-content: center; background: #000; }
-        .video-js { width: 100% !important; height: 100% !important; }
+        .channel-item.active { background: #004a99; border-left: 4px solid #fff; }
+        
+        .channel-logo { width: 55px; height: 32px; object-fit: contain; margin-right: 12px; background: #000; border-radius: 4px; }
+        .channel-name { font-size: 14px; font-weight: 500; }
+
+        /* Main Video Area */
+        #main-content { flex: 1; position: relative; background: #000; }
+        video { width: 100%; height: 100%; }
     </style>
 </head>
 <body>
 
 <div id="sidebar">
-    <div class="sidebar-header">IPTV STREAMING</div>
-    <div id="channel-list">Loading...</div>
+    <div class="menu-header">
+        <button class="all-channels-btn" onclick="scrollToTop()">ALL CHANNELS</button>
+    </div>
+    <div id="channel-list">Loading Playlist...</div>
 </div>
 
-<div id="video-container">
-    <video id="my-video" class="video-js vjs-default-skin" controls preload="auto" crossorigin="anonymous" autoplay>
-        <p class="vjs-no-js">To view this video please enable JavaScript</p>
-    </video>
+<div id="main-content" data-shaka-player-container>
+    <video data-shaka-player id="video" autoplay></video>
 </div>
 
 <script>
-    const M3U_URL = 'https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123?v=' + Date.now();
-    const player = videojs('my-video', {
-        html5: {
-            vhs: { overrideNative: true },
-            nativeAudioTracks: false,
-            nativeVideoTracks: false
-        }
-    });
+    const M3U_SOURCE = 'https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123?v=' + Date.now();
+    const DRM_CONFIG = { '09ddfe3d63863cafaeb79d0546b098ab': '3de0f38dcf014827dfd5bec38743c6a2' };
 
-    // ClearKey for HBO
-    const clearkeyConfig = {
-        '09ddfe3d63863cafaeb79d0546b098ab': '3de0f38dcf014827dfd5bec38743c6a2'
-    };
+    let playerInstance;
 
-    async function loadPlaylist() {
+    async function initPlayer() {
+        const video = document.getElementById('video');
+        const ui = video['ui'];
+        playerInstance = ui.getControls().getPlayer();
+
+        // Optimized for Speed & AutoPlay
+        playerInstance.configure({
+            drm: { clearKeys: DRM_CONFIG },
+            streaming: {
+                rebufferingGoal: 1,
+                bufferingGoal: 5,
+                lowLatencyMode: true
+            }
+        });
+
         try {
-            const response = await fetch(M3U_URL);
-            const data = await response.text();
-            const lines = data.split('\n');
-            const list = document.getElementById('channel-list');
-            list.innerHTML = '';
-            let meta = {};
-
-            lines.forEach(line => {
-                if (line.includes('#EXTINF')) {
-                    const logo = line.match(/tvg-logo="([^"]+)"/i);
-                    meta.logo = logo ? logo[1] : '';
-                    meta.name = line.split(',')[1] || 'Unknown';
-                } else if (line.startsWith('http')) {
-                    const url = line.trim();
-                    const item = document.createElement('div');
-                    item.className = 'channel-item';
-                    item.innerHTML = `<img class="channel-logo" src="${meta.logo || 'https://via.placeholder.com/50'}"> <span>${meta.name}</span>`;
-                    item.onclick = () => playStream(url, item);
-                    list.appendChild(item);
-                    meta = {};
-                }
-            });
-        } catch (e) { console.error("Playlist error"); }
+            const response = await fetch(M3U_SOURCE);
+            const m3uText = await response.text();
+            parsePlaylist(m3uText);
+        } catch (e) {
+            document.getElementById('channel-list').innerText = "Load Failed!";
+        }
     }
 
-    function playStream(url, element) {
-        document.querySelectorAll('.channel-item').forEach(i => i.classList.remove('active'));
-        element.classList.add('active');
+    function parsePlaylist(data) {
+        const listContainer = document.getElementById('channel-list');
+        listContainer.innerHTML = '';
+        const lines = data.split('\n');
+        let tempMeta = {};
+        let isFirstChannel = true;
 
-        let type = 'application/x-mpegURL'; // Mặc định là m3u8 (HLS)
-        if (url.includes('.mpd')) type = 'application/dash+xml';
+        lines.forEach(line => {
+            if (line.includes('#EXTINF')) {
+                const logoMatch = line.match(/tvg-logo="([^"]+)"/i);
+                tempMeta.logo = logoMatch ? logoMatch[1] : '';
+                tempMeta.name = line.split(',')[1] || 'Unknown';
+            } else if (line.startsWith('http')) {
+                const url = line.trim();
+                const btn = document.createElement('div');
+                btn.className = 'channel-item';
+                btn.innerHTML = `<img class="channel-logo" src="${tempMeta.logo || 'https://via.placeholder.com/55x32?text=TV'}">
+                                 <span class="channel-name">${tempMeta.name}</span>`;
+                
+                btn.onclick = () => playStream(url, btn);
+                listContainer.appendChild(btn);
 
-        // Xử lý đặc biệt: Dùng Proxy để bóc tách luồng từ hoiquan.click
-        const finalUrl = url.includes('hoiquan.click') ? "https://corsproxy.io/?" + encodeURIComponent(url) : url;
-
-        player.src({
-            src: finalUrl,
-            type: type,
-            keySystems: url.includes('.mpd') ? { 'org.w3.clearkey': clearkeyConfig } : {}
-        });
-
-        player.play().catch(error => {
-            console.log("Auto-play blocked or Stream Error");
-        });
-    }
-
-    loadPlaylist();
-</script>
-</body>
-</html>
+                // AUTO-PLAY FIRST CHANNEL
+                if (isFirstChannel) {
+                    playStream(url
 
