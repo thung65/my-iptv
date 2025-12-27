@@ -2,173 +2,91 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Premium IPTV Web Interface</title>
+    <title>IPTV PRO PLAYER</title>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/shaka-player@4.3.5/dist/shaka-player.ui.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shaka-player@4.3.5/dist/controls.css">
     <style>
-        body { margin: 0; background: #050505; color: #ffffff; font-family: 'Segoe UI', Roboto, sans-serif; display: flex; height: 100vh; overflow: hidden; }
-        
-        /* Sidebar styling */
-        #sidebar { width: 350px; background: #121212; border-right: 1px solid #282828; display: flex; flex-direction: column; }
-        .sidebar-header { padding: 25px; font-size: 1.4em; font-weight: 700; color: #0084ff; border-bottom: 1px solid #282828; text-align: center; letter-spacing: 1px; }
-        
-        #channel-list { flex: 1; overflow-y: auto; padding: 10px 0; }
-        
-        /* Channel Item with Logo */
-        .channel-item { 
-            display: flex; 
-            align-items: center; 
-            padding: 12px 20px; 
-            cursor: pointer; 
-            border-bottom: 1px solid #1a1a1a; 
-            transition: all 0.3s ease;
-        }
-        .channel-item:hover { background: #252525; }
-        .channel-item.active { background: #004a99 !important; border-left: 5px solid #0084ff; }
-        
-        .channel-logo { 
-            width: 60px; 
-            height: 35px; 
-            object-fit: contain; 
-            margin-right: 15px; 
-            background: #1a1a1a;
-            border-radius: 5px;
-            padding: 2px;
-        }
-        .channel-name { font-size: 0.95em; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-        /* Video Area */
-        #video-container { flex: 1; background: #000; position: relative; display: flex; align-items: center; justify-content: center; }
+        body { margin: 0; background: #000; color: #fff; font-family: sans-serif; display: flex; height: 100vh; }
+        #sidebar { width: 300px; background: #111; border-right: 1px solid #333; display: flex; flex-direction: column; }
+        .sidebar-header { padding: 20px; font-weight: bold; color: #0078d4; border-bottom: 1px solid #333; }
+        #channel-list { flex: 1; overflow-y: auto; }
+        .channel-item { display: flex; align-items: center; padding: 10px; cursor: pointer; border-bottom: 1px solid #222; }
+        .channel-item:hover { background: #222; }
+        .channel-item.active { background: #005a9e; }
+        .channel-logo { width: 50px; height: 30px; object-fit: contain; margin-right: 10px; background: #000; }
+        #video-container { flex: 1; position: relative; }
         video { width: 100%; height: 100%; }
-
-        /* Custom Scrollbar */
-        #channel-list::-webkit-scrollbar { width: 6px; }
-        #channel-list::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
     </style>
 </head>
 <body>
-
-<div id="sidebar">
-    <div class="sidebar-header">IPTV MONITOR</div>
-    <div id="channel-list">Syncing Playlist...</div>
-</div>
-
-<div id="video-container" data-shaka-player-container>
-    <video data-shaka-player id="video" autoplay></video>
-</div>
+    <div id="sidebar">
+        <div class="sidebar-header">LIVE TV</div>
+        <div id="channel-list">Syncing...</div>
+    </div>
+    <div id="video-container" data-shaka-player-container>
+        <video data-shaka-player id="video" autoplay></video>
+    </div>
 
 <script>
-    // Link to your M3U file on GitHub
-    const M3U_SOURCE = 'https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123';
-    
-    // ClearKey for HBO and secured channels
-    const KEY_SYSTEM = { 
-        '09ddfe3d63863cafaeb79d0546b098ab': '3de0f38dcf014827dfd5bec38743c6a2' 
-    };
+    // Phá cache bằng cách thêm số ngẫu nhiên vào link
+    const M3U_URL = 'https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123?v=' + Math.random();
+    const DRM_KEYS = { '09ddfe3d63863cafaeb79d0546b098ab': '3de0f38dcf014827dfd5bec38743c6a2' };
 
-    let hlsInstance = null;
-
-    async function setupApp() {
+    let hlsPlayer;
+    async function init() {
         const video = document.getElementById('video');
         const ui = video['ui'];
         const player = ui.getControls().getPlayer();
+        player.configure({ drm: { clearKeys: DRM_KEYS } });
 
-        // DRM Configuration
-        player.configure({
-            drm: { clearKeys: KEY_SYSTEM },
-            streaming: { lowLatencyMode: true, rebufferingGoal: 2 }
-        });
-
-        // Fetch and Parse Playlist
         try {
-            const response = await fetch(M3U_SOURCE);
-            const m3uData = await response.text();
-            buildUI(m3uData, player, video);
-        } catch (err) {
-            document.getElementById('channel-list').innerText = "Network Error: Check M3U Link.";
-        }
+            const res = await fetch(M3U_URL);
+            const data = await res.text();
+            render(data, player, video);
+        } catch (e) { console.error("Load error"); }
     }
 
-    function buildUI(data, player, video) {
-        const listBody = document.getElementById('channel-list');
-        listBody.innerHTML = '';
+    function render(data, player, video) {
+        const list = document.getElementById('channel-list');
+        list.innerHTML = '';
         const lines = data.split('\n');
-        
-        let tempMeta = {};
+        let meta = {};
 
         lines.forEach(line => {
-            line = line.trim();
-            if (line.startsWith('#EXTINF')) {
-                // Parse Logo and Name from M3U line
-                const logoMatch = line.match(/tvg-logo="([^"]+)"/i);
-                const namePart = line.split(',')[1];
-                tempMeta.logo = logoMatch ? logoMatch[1] : '';
-                tempMeta.name = namePart ? namePart.trim() : 'Unnamed Stream';
+            if (line.includes('#EXTINF')) {
+                const logo = line.match(/tvg-logo="([^"]+)"/);
+                meta.logo = logo ? logo[1] : '';
+                meta.name = line.split(',')[1] || 'No Name';
             } else if (line.startsWith('http')) {
-                const streamUrl = line;
-                const channelName = tempMeta.name;
-                const channelLogo = tempMeta.logo;
-
-                const card = document.createElement('div');
-                card.className = 'channel-item';
-                
-                // Logo element
-                const icon = document.createElement('img');
-                icon.className = 'channel-logo';
-                // Placeholder if logo is missing
-                icon.src = channelLogo || 'https://via.placeholder.com/60x35/1a1a1a/0084ff?text=TV';
-                icon.onerror = () => { icon.src = 'https://via.placeholder.com/60x35/1a1a1a/555?text=No+Logo'; };
-
-                const label = document.createElement('span');
-                label.className = 'channel-name';
-                label.innerText = channelName;
-
-                card.appendChild(icon);
-                card.appendChild(label);
-                
-                card.onclick = () => playStream(streamUrl, player, video, card);
-                listBody.appendChild(card);
-                tempMeta = {}; // Clean for next entry
+                const url = line.trim();
+                const div = document.createElement('div');
+                div.className = 'channel-item';
+                div.innerHTML = `<img class="channel-logo" src="${meta.logo}"> <span>${meta.name}</span>`;
+                div.onclick = () => play(url, player, video, div);
+                list.appendChild(div);
+                meta = {};
             }
         });
     }
 
-    async function playStream(url, player, video, element) {
-        // Update UI state
+    async function play(url, player, video, el) {
         document.querySelectorAll('.channel-item').forEach(i => i.classList.remove('active'));
-        element.classList.add('active');
-        
-        // Clear previous stream
-        if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
-        video.pause();
+        el.classList.add('active');
+        if (hlsPlayer) { hlsPlayer.destroy(); hlsPlayer = null; }
         video.src = '';
 
-        // Play Logic
         if (url.includes('.mpd')) {
-            // Dash/DRM support
-            try { await player.load(url); } catch (e) { console.error("DASH Load Failed", e); }
+            await player.load(url);
         } else if (url.includes('.m3u8')) {
-            // HLS support
             if (Hls.isSupported()) {
-                hlsInstance = new Hls();
-                hlsInstance.loadSource(url);
-                hlsInstance.attachMedia(video);
-                hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => video.play());
-            } else {
-                video.src = url;
-                video.play();
+                hlsPlayer = new Hls();
+                hlsPlayer.loadSource(url);
+                hlsPlayer.attachMedia(video);
             }
-        } else {
-            // Direct MP4 or others
-            video.src = url;
-            video.play();
         }
     }
-
-    document.addEventListener('shaka-ui-loaded', setupApp);
+    document.addEventListener('shaka-ui-loaded', init);
 </script>
 </body>
 </html>
-
