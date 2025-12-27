@@ -2,62 +2,63 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>IPTV VIỆT NAM - TỰ ĐỘNG CẬP NHẬT TOKEN</title>
+    <title>IPTV VIỆT NAM - PHIÊN BẢN MỚI NHẤT</title>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/shaka-player@4.3.5/dist/shaka-player.ui.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shaka-player@4.3.5/dist/controls.css">
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: sans-serif; display: flex; height: 100vh; overflow: hidden; }
         #sidebar { width: 300px; background: #111; border-right: 1px solid #333; display: flex; flex-direction: column; }
-        .header { padding: 15px; background: #d32f2f; text-align: center; font-weight: bold; font-size: 16px; }
+        .header { padding: 15px; background: #d32f2f; text-align: center; font-weight: bold; }
         #channel-list { flex: 1; overflow-y: auto; }
         .channel-item { display: flex; align-items: center; padding: 12px; cursor: pointer; border-bottom: 1px solid #222; }
         .channel-item.active { background: #1a237e; border-left: 5px solid #ffeb3b; }
-        .channel-logo { width: 50px; height: 30px; object-fit: contain; margin-right: 12px; background: #000; border-radius: 3px; }
+        .channel-logo { width: 50px; height: 30px; object-fit: contain; margin-right: 12px; background: #000; }
         #main-player { flex: 1; background: #000; position: relative; }
         video { width: 100%; height: 100%; }
+        .refresh-notice { font-size: 10px; color: #888; padding: 5px; text-align: center; }
     </style>
 </head>
 <body>
-
 <div id="sidebar">
-    <div class="header">DANH SÁCH IPTV</div>
-    <div id="channel-list">Đang kết nối...</div>
+    <div class="header">IPTV TỰ ĐỘNG CẬP NHẬT</div>
+    <div class="refresh-notice" id="ver">Đang tải cấu hình...</div>
+    <div id="channel-list">Vui lòng chờ...</div>
 </div>
-
 <div id="main-player" data-shaka-player-container>
     <video data-shaka-player id="video" autoplay controls></video>
 </div>
 
 <script>
+    // Ép GitHub trả về file m3u mới nhất bằng cách dùng chuỗi thời gian ngẫu nhiên
     const M3U_URL = 'https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123?v=' + Date.now();
     const DRM_KEYS = { '09ddfe3d63863cafaeb79d0546b098ab': '3de0f38dcf014827dfd5bec38743c6a2' };
+    
+    document.getElementById('ver').innerText = "Cập nhật lúc: " + new Date().toLocaleTimeString();
 
     let hls;
-
     async function init() {
         const video = document.getElementById('video');
         const ui = video['ui'];
         const player = ui.getControls().getPlayer();
-
-        player.configure({
-            drm: { clearKeys: DRM_KEYS },
-            streaming: { lowLatencyMode: true, jumpLargeGaps: true }
-        });
+        player.configure({ drm: { clearKeys: DRM_KEYS }, streaming: { lowLatencyMode: true } });
 
         try {
             const res = await fetch(M3U_URL);
             const text = await res.text();
+            if (text.length < 10) throw new Error("File trống");
             parseM3U(text, player, video);
-        } catch (e) { document.getElementById('channel-list').innerText = "Lỗi tải file!"; }
+        } catch (e) {
+            document.getElementById('channel-list').innerText = "GitHub đang xử lý file... Tự tải lại sau 5s";
+            setTimeout(() => location.reload(), 5000);
+        }
     }
 
     function parseM3U(data, player, video) {
         const container = document.getElementById('channel-list');
         container.innerHTML = '';
         const lines = data.split('\n');
-        let meta = {};
-        let first = true;
+        let meta = {}; let first = true;
 
         lines.forEach(line => {
             if (line.includes('#EXTINF')) {
@@ -68,10 +69,9 @@
                 const url = line.trim();
                 const div = document.createElement('div');
                 div.className = 'channel-item';
-                div.innerHTML = `<img class="channel-logo" src="${meta.logo}"> <span>${meta.name}</span>`;
+                div.innerHTML = `<img class="channel-logo" src="${meta.logo}" onerror="this.src='https://via.placeholder.com/50x30?text=TV'"> <span>${meta.name}</span>`;
                 div.onclick = () => play(url, player, video, div);
                 container.appendChild(div);
-
                 if (first) { play(url, player, video, div); first = false; }
                 meta = {};
             }
@@ -79,5 +79,27 @@
     }
 
     async function play(url, player, video, el) {
-        document.querySelectorAll('.channel-item').forEach(
+        document.querySelectorAll('.channel-item').forEach(i => i.classList.remove('active'));
+        el.classList.add('active');
+        if (hls) { hls.destroy(); hls = null; }
+        video.pause(); video.src = '';
+
+        // Tự động nhận diện link cần Proxy (cho toiyeuvietnam và Viettel IP)
+        const needsProxy = url.includes('dpdns.org') || url.includes('27.67.');
+        const finalUrl = needsProxy ? 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url) : url;
+
+        if (url.includes('.mpd')) {
+            try { await player.load(finalUrl); } catch (e) { alert("Lỗi phát HBO!"); }
+        } else {
+            if (Hls.isSupported()) {
+                hls = new Hls({ xhrSetup: xhr => { xhr.withCredentials = false; } });
+                hls.loadSource(finalUrl);
+                hls.attachMedia(video);
+            } else { video.src = finalUrl; video.play(); }
+        }
+    }
+    document.addEventListener('shaka-ui-loaded', init);
+</script>
+</body>
+</html>
 
