@@ -2,101 +2,117 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>IPTV PRO - DECODER MODE</title>
-    <link href="https://vjs.zencdn.net/8.3.0/video-js.css" rel="stylesheet" />
-    <script src="https://vjs.zencdn.net/8.3.0/video.min.js"></script>
+    <title>IPTV SAMSUNG TV - VIETTEL & TV360</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: sans-serif; display: flex; height: 100vh; overflow: hidden; }
-        #sidebar { width: 300px; background: #111; border-right: 1px solid #333; display: flex; flex-direction: column; }
-        .header { padding: 15px; background: #1a237e; text-align: center; font-weight: bold; color: #ffeb3b; border-bottom: 2px solid #ffeb3b; }
-        #channel-list { flex: 1; overflow-y: auto; background: #0a0a0a; }
-        .channel-item { display: flex; align-items: center; padding: 12px; cursor: pointer; border-bottom: 1px solid #1a1a1a; }
-        .channel-item.active { background: #1a237e; border-left: 5px solid #ffeb3b; }
-        .channel-logo { width: 50px; height: 32px; object-fit: contain; margin-right: 12px; background: #000; border-radius: 4px; }
-        #main-video { flex: 1; background: #000; position: relative; }
-        .video-js { width: 100% !important; height: 100% !important; }
+        #sidebar { width: 300px; background: #111; border-right: 1px solid #333; display: flex; flex-direction: column; transition: 0.3s; }
+        .sidebar-hidden #sidebar { margin-left: -300px; }
+        .header { padding: 15px; background: #ee0000; text-align: center; font-weight: bold; border-bottom: 2px solid #fff; }
+        #channel-list { flex: 1; overflow-y: auto; background: #050505; }
+        .channel-item { display: flex; align-items: center; padding: 10px; cursor: pointer; border-bottom: 1px solid #1a1a1a; }
+        .channel-item.active { background: #222; border-left: 5px solid #ee0000; }
+        .channel-logo { width: 50px; height: 30px; object-fit: contain; margin-right: 12px; background: #fff; border-radius: 2px; }
+        #main-player { flex: 1; position: relative; background: #000; }
+        video { width: 100%; height: 100%; }
+        #osd { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.8); padding: 10px 20px; border-radius: 5px; border-left: 4px solid #ee0000; display: none; z-index: 100; }
     </style>
 </head>
 <body>
 
 <div id="sidebar">
-    <div class="header">IPTV GIẢI MÃ CAO CẤP</div>
-    <div id="channel-list">Đang nạp luồng dữ liệu...</div>
+    <div class="header">VIETTEL TV MODE</div>
+    <div id="channel-list">Đang kiểm tra luồng...</div>
 </div>
 
-<div id="main-video">
-    <video id="my-player" class="video-js vjs-big-play-centered" controls preload="auto" autoplay></video>
+<div id="main-player">
+    <div id="osd"></div>
+    <video id="video" autoplay controls playsinline></video>
 </div>
 
 <script>
     const M3U_URL = 'https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123?v=' + Date.now();
-    const player = videojs('my-player', {
-        html5: { vhs: { overrideNative: true }, nativeVideoTracks: false }
-    });
+    let hls;
+    let channels = [];
+    let currentIndex = 0;
+    const video = document.getElementById('video');
+    const osd = document.getElementById('osd');
 
-    // Cấu hình mã khóa HBO (ClearKey)
-    const DRM_KEYS = { '09ddfe3d63863cafaeb79d0546b098ab': '3de0f38dcf014827dfd5bec38743c6a2' };
-
-    async function startApp() {
+    async function init() {
         try {
             const res = await fetch(M3U_URL);
-            const data = await res.text();
-            renderChannels(data);
-        } catch (e) { document.getElementById('channel-list').innerText = "Lỗi kết nối GitHub!"; }
+            const text = await res.text();
+            parseM3U(text);
+        } catch (e) { console.error("Lỗi nạp danh sách"); }
     }
 
-    function renderChannels(data) {
-        const container = document.getElementById('channel-list');
-        container.innerHTML = '';
+    function parseM3U(data) {
         const lines = data.split('\n');
-        let meta = {}; let isFirst = true;
-
+        let temp = {}; channels = [];
         lines.forEach(line => {
             if (line.includes('#EXTINF')) {
-                const logo = line.match(/tvg-logo="([^"]+)"/i);
-                meta.logo = logo ? logo[1] : '';
-                meta.name = line.split(',')[1] || 'Kênh Truyền Hình';
+                temp.name = line.split(',')[1]?.trim() || 'Kênh TV';
+                temp.logo = line.match(/tvg-logo="([^"]+)"/i)?.[1] || '';
             } else if (line.startsWith('http')) {
-                const url = line.trim();
-                const div = document.createElement('div');
-                div.className = 'channel-item';
-                div.innerHTML = `<img class="channel-logo" src="${meta.logo}" onerror="this.src='https://via.placeholder.com/50x32?text=TV'"> 
-                                 <span class="channel-name">${meta.name}</span>`;
-                
-                div.onclick = () => playNow(url, div);
-                container.appendChild(div);
-
-                if (isFirst) { playNow(url, div); isFirst = false; }
-                meta = {};
+                channels.push({ url: line.trim(), name: temp.name, logo: temp.logo });
+                temp = {};
             }
         });
+        renderList();
+        if (channels.length > 0) playChannel(0);
     }
 
-    function playNow(url, el) {
-        document.querySelectorAll('.channel-item').forEach(i => i.classList.remove('active'));
-        el.classList.add('active');
+    function renderList() {
+        const list = document.getElementById('channel-list');
+        list.innerHTML = channels.map((ch, i) => `
+            <div class="channel-item" id="ch-${i}" onclick="playChannel(${i})">
+                <img class="channel-logo" src="${ch.logo}" onerror="this.src='https://via.placeholder.com/50x30?text=TV'">
+                <span>${ch.name}</span>
+            </div>
+        `).join('');
+    }
 
-        // CHẾ ĐỘ GIẢI MÃ ĐẶC BIỆT:
-        // Sử dụng m3u8.dev hoặc AllOrigins để xử lý Redirect từ dpdns.org
-        let proxyUrl = url;
-        if (url.includes('dpdns.org') || url.includes('27.67.')) {
-            // Proxy này giúp bóc tách link gốc và vượt qua kiểm tra User-Agent
-            proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+    function showOSD(name) {
+        osd.innerText = "ĐANG PHÁT: " + name;
+        osd.style.display = 'block';
+        clearTimeout(window.osdTimer);
+        window.osdTimer = setTimeout(() => { osd.style.display = 'none'; }, 3000);
+    }
+
+    function playChannel(index) {
+        if (index < 0) index = channels.length - 1;
+        if (index >= channels.length) index = 0;
+        
+        currentIndex = index;
+        const ch = channels[currentIndex];
+
+        // Highlight kênh đang chọn
+        document.querySelectorAll('.channel-item').forEach(el => el.classList.remove('active'));
+        const activeItem = document.getElementById('ch-' + index);
+        activeItem?.classList.add('active');
+        activeItem?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        showOSD(ch.name);
+
+        if (hls) hls.destroy();
+
+        let finalUrl = ch.url;
+
+        // TỰ ĐỘNG PHÂN LOẠI SERVER ĐỂ GIẢI MÃ
+        if (ch.url.includes('27.67.') || ch.url.includes('dpdns.org')) {
+            // Đối với server IP Viettel: Dùng Proxy để vượt rào cản Mixed Content của TV
+            finalUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(ch.url);
+        } else if (ch.url.includes('tv360.vn')) {
+            // Đối với TV360 chính chủ: Để link gốc (vì TV360 có CDN tốt)
+            finalUrl = ch.url;
         }
 
-        player.src({
-            src: proxyUrl,
-            type: url.includes('.mpd') ? 'application/dash+xml' : 'application/x-mpegURL',
-            keySystems: url.includes('.mpd') ? { 'org.w3.clearkey': DRM_KEYS } : undefined
-        });
-
-        player.play().catch(() => {
-            console.log("Cần tương tác người dùng để phát video");
-        });
-    }
-
-    startApp();
-</script>
-</body>
-</html>
+        if (Hls.isSupported()) {
+            hls = new Hls({
+                enableWorker: true,
+                xhrSetup: function(xhr, url) {
+                    xhr.withCredentials = false;
+                }
+            });
+            hls.loadSource(finalUrl);
+            hls
 
