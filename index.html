@@ -2,91 +2,100 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>IPTV PRO PLAYER</title>
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    <script src="https://cdn.jsdelivr.net/npm/shaka-player@4.3.5/dist/shaka-player.ui.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shaka-player@4.3.5/dist/controls.css">
+    <title>ULTIMATE IPTV GATEWAY</title>
+    <link href="https://vjs.zencdn.net/8.3.0/video-js.css" rel="stylesheet" />
+    <script src="https://vjs.zencdn.net/8.3.0/video.min.js"></script>
     <style>
-        body { margin: 0; background: #000; color: #fff; font-family: sans-serif; display: flex; height: 100vh; }
+        body { margin: 0; background: #000; color: #fff; font-family: sans-serif; display: flex; height: 100vh; overflow: hidden; }
         #sidebar { width: 300px; background: #111; border-right: 1px solid #333; display: flex; flex-direction: column; }
-        .sidebar-header { padding: 20px; font-weight: bold; color: #0078d4; border-bottom: 1px solid #333; }
+        .sidebar-header { padding: 20px; font-weight: bold; color: #0084ff; border-bottom: 1px solid #333; text-align: center; }
         #channel-list { flex: 1; overflow-y: auto; }
-        .channel-item { display: flex; align-items: center; padding: 10px; cursor: pointer; border-bottom: 1px solid #222; }
+        .channel-item { display: flex; align-items: center; padding: 12px; cursor: pointer; border-bottom: 1px solid #222; }
         .channel-item:hover { background: #222; }
-        .channel-item.active { background: #005a9e; }
-        .channel-logo { width: 50px; height: 30px; object-fit: contain; margin-right: 10px; background: #000; }
-        #video-container { flex: 1; position: relative; }
-        video { width: 100%; height: 100%; }
+        .channel-item.active { background: #005a9e !important; }
+        .channel-logo { width: 50px; height: 35px; object-fit: contain; margin-right: 12px; background: #000; border-radius: 4px; }
+        #video-container { flex: 1; display: flex; align-items: center; justify-content: center; background: #000; }
+        .video-js { width: 100% !important; height: 100% !important; }
     </style>
 </head>
 <body>
-    <div id="sidebar">
-        <div class="sidebar-header">LIVE TV</div>
-        <div id="channel-list">Syncing...</div>
-    </div>
-    <div id="video-container" data-shaka-player-container>
-        <video data-shaka-player id="video" autoplay></video>
-    </div>
+
+<div id="sidebar">
+    <div class="sidebar-header">IPTV STREAMING</div>
+    <div id="channel-list">Loading...</div>
+</div>
+
+<div id="video-container">
+    <video id="my-video" class="video-js vjs-default-skin" controls preload="auto" crossorigin="anonymous" autoplay>
+        <p class="vjs-no-js">To view this video please enable JavaScript</p>
+    </video>
+</div>
 
 <script>
-    // Phá cache bằng cách thêm số ngẫu nhiên vào link
-    const M3U_URL = 'https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123?v=' + Math.random();
-    const DRM_KEYS = { '09ddfe3d63863cafaeb79d0546b098ab': '3de0f38dcf014827dfd5bec38743c6a2' };
+    const M3U_URL = 'https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123?v=' + Date.now();
+    const player = videojs('my-video', {
+        html5: {
+            vhs: { overrideNative: true },
+            nativeAudioTracks: false,
+            nativeVideoTracks: false
+        }
+    });
 
-    let hlsPlayer;
-    async function init() {
-        const video = document.getElementById('video');
-        const ui = video['ui'];
-        const player = ui.getControls().getPlayer();
-        player.configure({ drm: { clearKeys: DRM_KEYS } });
+    // ClearKey for HBO
+    const clearkeyConfig = {
+        '09ddfe3d63863cafaeb79d0546b098ab': '3de0f38dcf014827dfd5bec38743c6a2'
+    };
 
+    async function loadPlaylist() {
         try {
-            const res = await fetch(M3U_URL);
-            const data = await res.text();
-            render(data, player, video);
-        } catch (e) { console.error("Load error"); }
+            const response = await fetch(M3U_URL);
+            const data = await response.text();
+            const lines = data.split('\n');
+            const list = document.getElementById('channel-list');
+            list.innerHTML = '';
+            let meta = {};
+
+            lines.forEach(line => {
+                if (line.includes('#EXTINF')) {
+                    const logo = line.match(/tvg-logo="([^"]+)"/i);
+                    meta.logo = logo ? logo[1] : '';
+                    meta.name = line.split(',')[1] || 'Unknown';
+                } else if (line.startsWith('http')) {
+                    const url = line.trim();
+                    const item = document.createElement('div');
+                    item.className = 'channel-item';
+                    item.innerHTML = `<img class="channel-logo" src="${meta.logo || 'https://via.placeholder.com/50'}"> <span>${meta.name}</span>`;
+                    item.onclick = () => playStream(url, item);
+                    list.appendChild(item);
+                    meta = {};
+                }
+            });
+        } catch (e) { console.error("Playlist error"); }
     }
 
-    function render(data, player, video) {
-        const list = document.getElementById('channel-list');
-        list.innerHTML = '';
-        const lines = data.split('\n');
-        let meta = {};
+    function playStream(url, element) {
+        document.querySelectorAll('.channel-item').forEach(i => i.classList.remove('active'));
+        element.classList.add('active');
 
-        lines.forEach(line => {
-            if (line.includes('#EXTINF')) {
-                const logo = line.match(/tvg-logo="([^"]+)"/);
-                meta.logo = logo ? logo[1] : '';
-                meta.name = line.split(',')[1] || 'No Name';
-            } else if (line.startsWith('http')) {
-                const url = line.trim();
-                const div = document.createElement('div');
-                div.className = 'channel-item';
-                div.innerHTML = `<img class="channel-logo" src="${meta.logo}"> <span>${meta.name}</span>`;
-                div.onclick = () => play(url, player, video, div);
-                list.appendChild(div);
-                meta = {};
-            }
+        let type = 'application/x-mpegURL'; // Mặc định là m3u8 (HLS)
+        if (url.includes('.mpd')) type = 'application/dash+xml';
+
+        // Xử lý đặc biệt: Dùng Proxy để bóc tách luồng từ hoiquan.click
+        const finalUrl = url.includes('hoiquan.click') ? "https://corsproxy.io/?" + encodeURIComponent(url) : url;
+
+        player.src({
+            src: finalUrl,
+            type: type,
+            keySystems: url.includes('.mpd') ? { 'org.w3.clearkey': clearkeyConfig } : {}
+        });
+
+        player.play().catch(error => {
+            console.log("Auto-play blocked or Stream Error");
         });
     }
 
-    async function play(url, player, video, el) {
-        document.querySelectorAll('.channel-item').forEach(i => i.classList.remove('active'));
-        el.classList.add('active');
-        if (hlsPlayer) { hlsPlayer.destroy(); hlsPlayer = null; }
-        video.src = '';
-
-        if (url.includes('.mpd')) {
-            await player.load(url);
-        } else if (url.includes('.m3u8')) {
-            if (Hls.isSupported()) {
-                hlsPlayer = new Hls();
-                hlsPlayer.loadSource(url);
-                hlsPlayer.attachMedia(video);
-            }
-        }
-    }
-    document.addEventListener('shaka-ui-loaded', init);
+    loadPlaylist();
 </script>
 </body>
 </html>
+
