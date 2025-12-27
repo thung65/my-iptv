@@ -2,117 +2,110 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>IPTV SAMSUNG TV - VIETTEL & TV360</title>
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <title>IPTV GLOBAL - DRM DECODER FULL</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
     <style>
-        body { margin: 0; background: #000; color: #fff; font-family: sans-serif; display: flex; height: 100vh; overflow: hidden; }
-        #sidebar { width: 300px; background: #111; border-right: 1px solid #333; display: flex; flex-direction: column; transition: 0.3s; }
-        .sidebar-hidden #sidebar { margin-left: -300px; }
-        .header { padding: 15px; background: #ee0000; text-align: center; font-weight: bold; border-bottom: 2px solid #fff; }
-        #channel-list { flex: 1; overflow-y: auto; background: #050505; }
-        .channel-item { display: flex; align-items: center; padding: 10px; cursor: pointer; border-bottom: 1px solid #1a1a1a; }
-        .channel-item.active { background: #222; border-left: 5px solid #ee0000; }
-        .channel-logo { width: 50px; height: 30px; object-fit: contain; margin-right: 12px; background: #fff; border-radius: 2px; }
-        #main-player { flex: 1; position: relative; background: #000; }
-        video { width: 100%; height: 100%; }
-        #osd { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.8); padding: 10px 20px; border-radius: 5px; border-left: 4px solid #ee0000; display: none; z-index: 100; }
+        body { margin: 0; background: #000; color: #fff; font-family: 'Segoe UI', sans-serif; display: flex; height: 100vh; overflow: hidden; }
+        #sidebar { width: 350px; background: #111; display: flex; flex-direction: column; border-right: 1px solid #333; }
+        .header { padding: 20px; background: #d32f2f; text-align: center; font-weight: bold; font-size: 1.2rem; text-transform: uppercase; }
+        #channel-list { flex: 1; overflow-y: auto; padding: 10px; }
+        .channel-item { padding: 12px; cursor: pointer; border-radius: 6px; margin-bottom: 6px; background: #222; display: flex; align-items: center; transition: 0.2s; }
+        .channel-item:hover { background: #333; }
+        .channel-item.active { background: #d32f2f; }
+        .channel-logo { width: 40px; height: 25px; margin-right: 12px; object-fit: contain; background: #fff; border-radius: 3px; padding: 2px; }
+        #main-video { flex: 1; position: relative; background: #000; }
+        video { width: 100%; height: 100%; outline: none; }
+        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); 
+                    display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 99; display: none; }
+        .spinner { width: 40px; height: 40px; border: 4px solid #333; border-top: 4px solid #fff; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
 <div id="sidebar">
-    <div class="header">VIETTEL TV MODE</div>
-    <div id="channel-list">Đang kiểm tra luồng...</div>
+    <div class="header">Kênh Quốc Tế DRM</div>
+    <div id="channel-list"></div>
 </div>
 
-<div id="main-player">
-    <div id="osd"></div>
-    <video id="video" autoplay controls playsinline></video>
+<div id="main-video">
+    <div id="overlay">
+        <div class="spinner"></div>
+        <p>ĐANG GIẢI MÃ DRM...</p>
+    </div>
+    <video id="video-player" controls autoplay playsinline></video>
 </div>
 
 <script>
-    const M3U_URL = 'https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123?v=' + Date.now();
-    let hls;
-    let channels = [];
-    let currentIndex = 0;
-    const video = document.getElementById('video');
-    const osd = document.getElementById('osd');
+    const CHANNELS = [
+        { name: "HBO HD", id: "09ddfe3d63863cafaeb79d0546b098ab", key: "3de0f38dcf014827dfd5bec38743c6a2", url: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/hbo.smil/manifest.mpd" },
+        { name: "AXN HD", id: "d29f87efdec3c9fab358f724e62ad0e", key: "6f1c09c03eab36323d60d1454db3d20", url: "https://s7771.cdn.mytvnet.vn/pkg20/live_dzones/axn.smil/manifest.mpd" },
+        { name: "CINEMAX", id: "acb4c23471063327adc732e283c0847f", key: "e9868f51473d0fd859ede48d531c2b0", url: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/max.smil/manifest.mpd" },
+        { name: "CINEMA WORLD", id: "ee7915564d7439d09bd3556fccc87a4a", key: "b35e12a75a42e5f9184723a90ff42d9c", url: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/cinemaworld.smil/manifest.mpd" },
+        { name: "ANIMAL PLANET", id: "ec6f072c7125377a9bc0ae61598095f4", key: "1d5388e0781415ebcec99f4f5ad75875", url: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/ap.smil/manifest.mpd" },
+        { name: "DREAMWORKS", id: "67dae20527c3dadaae503aa91577cb&key", key: "59328f621d56767bc5ff9404a8f94016", url: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/dreamworks.smil/manifest.mpd" },
+        { name: "CARTOONITO", id: "b1f0d759e914369db388b3b0dc815971", key: "5678d317e17007a88a9b9539e4526512", url: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/boomerang.smil/manifest.mpd" },
+        { name: "BBC CBEEBIES", id: "cca73a006b4b39a595207ceb5ed9ca0a", key: "b333d1140c261ef79896f97e06ff080c", url: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/cbb.smil/manifest.mpd" },
+        { name: "WARNER TV", id: "086d09a40bff3a00aa6dd4dbaf9c13b2", key: "34f1908c1e2e05600046b04f14aec9d8", url: "https://s7771.cdn.mytvnet.vn/pkg20/live_dzones/wtv.smil/manifest.mpd" },
+        { name: "DMAX", id: "53b26f904ae03a20b56477cfb9c5dca2", key: "0c64ccfb978e739bd33344075492aec2", url: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/dmax.smil/manifest.mpd" },
+        { name: "CARTOON NETWORK", id: "3c20166660a93a75ec77db81567389f7", key: "3cc1ad643aecee3fe31c9c6a2a5b8c21", url: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/cn.smil/manifest.mpd" },
+        { name: "DISCOVERY ASIA", id: "934907b134be3963a6253a453846924c", key: "788e2835fb98568aed2f47bbdc091515", url: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/dscasia.smil/manifest.mpd" },
+        { name: "ABC AUSTRALIA", id: "9a09a73ec1dc348584e2f130e27da667", key: "06f8d1a6feaffbdab92edf347e7b469c", url: "https://s935.cdn.mytvnet.vn/pkg20/live_dzones/aplus.smil/manifest.mpd" },
+        { name: "BBC LIFESTYLE", id: "58b949986ed13294bc01b0f330abc527", key: "23e8c5f2fe202906ac2d6554d9527299", url: "https://s7770.cdn.mytvnet.vn/pkg20/live_dzones/bbclifestyle.smil/manifest.mpd" },
+        { name: "BBC EARTH", id: "5014941a2c42379880b5ed72304c165f", key: "3fa1fe3d39a52f4eefd3ff7161e89fde", url: "https://s7771.cdn.mytvnet.vn/pkg20/live_dzones/bbcearth.smil/manifest.mpd" },
+        { name: "BBC WORLD NEWS", id: "c7ba46086dda345a929e29bf155e4d37", key: "4b8f39904bf572689ea347ae86591", url: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/bbcworldnews.smil/manifest.mpd" }
+    ];
+
+    let shakaPlayer;
+    let currentIndex = -1;
 
     async function init() {
-        try {
-            const res = await fetch(M3U_URL);
-            const text = await res.text();
-            parseM3U(text);
-        } catch (e) { console.error("Lỗi nạp danh sách"); }
+        const video = document.getElementById('video-player');
+        shakaPlayer = new shaka.Player(video);
+        render();
+        if (CHANNELS.length > 0) play(0);
     }
 
-    function parseM3U(data) {
-        const lines = data.split('\n');
-        let temp = {}; channels = [];
-        lines.forEach(line => {
-            if (line.includes('#EXTINF')) {
-                temp.name = line.split(',')[1]?.trim() || 'Kênh TV';
-                temp.logo = line.match(/tvg-logo="([^"]+)"/i)?.[1] || '';
-            } else if (line.startsWith('http')) {
-                channels.push({ url: line.trim(), name: temp.name, logo: temp.logo });
-                temp = {};
-            }
-        });
-        renderList();
-        if (channels.length > 0) playChannel(0);
-    }
-
-    function renderList() {
+    function render() {
         const list = document.getElementById('channel-list');
-        list.innerHTML = channels.map((ch, i) => `
-            <div class="channel-item" id="ch-${i}" onclick="playChannel(${i})">
-                <img class="channel-logo" src="${ch.logo}" onerror="this.src='https://via.placeholder.com/50x30?text=TV'">
+        list.innerHTML = CHANNELS.map((ch, i) => `
+            <div class="channel-item" id="ch-${i}" onclick="play(${i})">
+                <img class="channel-logo" src="https://via.placeholder.com/40x25?text=TV">
                 <span>${ch.name}</span>
             </div>
         `).join('');
     }
 
-    function showOSD(name) {
-        osd.innerText = "ĐANG PHÁT: " + name;
-        osd.style.display = 'block';
-        clearTimeout(window.osdTimer);
-        window.osdTimer = setTimeout(() => { osd.style.display = 'none'; }, 3000);
-    }
-
-    function playChannel(index) {
-        if (index < 0) index = channels.length - 1;
-        if (index >= channels.length) index = 0;
-        
+    async function play(index) {
+        if (currentIndex === index) return;
         currentIndex = index;
-        const ch = channels[currentIndex];
+        const ch = CHANNELS[index];
+        const overlay = document.getElementById('overlay');
+        overlay.style.display = 'flex';
 
-        // Highlight kênh đang chọn
         document.querySelectorAll('.channel-item').forEach(el => el.classList.remove('active'));
-        const activeItem = document.getElementById('ch-' + index);
-        activeItem?.classList.add('active');
-        activeItem?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        showOSD(ch.name);
+        document.getElementById('ch-' + index).classList.add('active');
 
-        if (hls) hls.destroy();
-
-        let finalUrl = ch.url;
-
-        // TỰ ĐỘNG PHÂN LOẠI SERVER ĐỂ GIẢI MÃ
-        if (ch.url.includes('27.67.') || ch.url.includes('dpdns.org')) {
-            // Đối với server IP Viettel: Dùng Proxy để vượt rào cản Mixed Content của TV
-            finalUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(ch.url);
-        } else if (ch.url.includes('tv360.vn')) {
-            // Đối với TV360 chính chủ: Để link gốc (vì TV360 có CDN tốt)
-            finalUrl = ch.url;
+        // Cấu hình DRM
+        if (ch.id && ch.key) {
+            shakaPlayer.configure({
+                drm: { clearKeys: { [ch.id]: ch.key } }
+            });
+        } else {
+            shakaPlayer.configure({ drm: { clearKeys: {} } });
         }
 
-        if (Hls.isSupported()) {
-            hls = new Hls({
-                enableWorker: true,
-                xhrSetup: function(xhr, url) {
-                    xhr.withCredentials = false;
-                }
-            });
-            hls.loadSource(finalUrl);
-            hls
+        try {
+            await shakaPlayer.load(ch.url);
+        } catch (e) {
+            console.error("Lỗi:", e);
+        } finally {
+            overlay.style.display = 'none';
+        }
+    }
 
+    shaka.polyfill.installAll();
+    init();
+</script>
+</body>
+</html>
