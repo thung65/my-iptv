@@ -1,135 +1,57 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html>
 <head>
     <meta charset="UTF-8">
-    <title>VTV Prime OS</title>
+    <title>IPTV Fixed</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
     <style>
-        body { margin: 0; background: #000; color: #fff; font-family: 'Segoe UI', Arial, sans-serif; overflow: hidden; }
-        
-        /* Trình phát Video */
-        #video-container { position: relative; width: 100vw; height: 100vh; background: #000; }
-        video { width: 100%; height: 100%; object-fit: contain; }
-
-        /* Logo góc màn hình */
-        .prime-logo {
-            position: absolute; top: 30px; right: 40px;
-            font-weight: bold; font-size: 24px; color: rgba(255,255,255,0.6);
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-            letter-spacing: 2px; pointer-events: none;
-        }
-
-        /* Thanh thông tin kênh giống TV Box */
-        #infobar {
-            position: absolute; bottom: 0; left: 0; right: 0;
-            background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.7) 70%, transparent 100%);
-            padding: 50px 50px 30px 50px;
-            transform: translateY(100%); transition: transform 0.5s ease;
-            display: flex; align-items: center;
-        }
-        #infobar.show { transform: translateY(0); }
-
-        .ch-number { font-size: 60px; font-weight: bold; color: #ffeb3b; margin-right: 25px; border-right: 2px solid #555; padding-right: 25px; }
-        .ch-details { flex-grow: 1; }
-        .ch-name { font-size: 32px; font-weight: bold; margin-bottom: 5px; }
-        .ch-quality { font-size: 14px; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
-
-        /* Màn hình chờ giải mã */
-        #boot-screen {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000; display: flex; flex-direction: column;
-            align-items: center; justify-content: center; z-index: 100;
-        }
-        .spinner {
-            width: 50px; height: 50px; border: 5px solid #333;
-            border-top: 5px solid #ffeb3b; border-radius: 50%;
-            animation: spin 1s linear infinite; margin-bottom: 20px;
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        body { margin:0; background:#000; color:#fff; display:flex; height:100vh; font-family:sans-serif; }
+        #menu { width:250px; background:#111; overflow-y:auto; border-right:1px solid #333; }
+        .ch { padding:15px; cursor:pointer; border-bottom:1px solid #222; }
+        .ch.active { background:#b71c1c; font-weight:bold; }
+        video { flex:1; background:#000; }
     </style>
 </head>
 <body>
-
-<div id="video-container">
-    <div id="boot-screen">
-        <div class="spinner"></div>
-        <div style="letter-spacing: 3px; font-size: 14px; color: #aaa;">VTV PRIME • ĐANG GIẢI MÃ DRM</div>
-    </div>
-
-    <div class="prime-logo">VTV PRIME</div>
-
-    <video id="video" autoplay playsinline></video>
-
-    <div id="infobar">
-        <div class="ch-number">01</div>
-        <div class="ch-details">
-            <div id="display-name" class="ch-name">ĐANG TẢI...</div>
-            <div class="ch-quality">Chế độ: Ưu tiên chất lượng từ Box (2026 Ready)</div>
-        </div>
-        <div style="text-align: right">
-            <div id="clock" style="font-size: 24px; font-weight: bold;">00:00</div>
-            <div style="font-size: 12px; color: #888;">Live Stream</div>
-        </div>
-    </div>
-</div>
-
+<div id="menu"></div>
+<video id="v" controls autoplay></video>
 <script>
-    async function startPrimeBox() {
-        const video = document.getElementById('video');
-        const infobar = document.getElementById('infobar');
-        const boot = document.getElementById('boot-screen');
-        const player = new shaka.Player(video);
+    const DATA = [
+        { n: "HBO HD", i: "09ddfe3d63863cafaeb79d0546b098ab", k: "3de0f38dcf014827dfd5bec38743c6a2", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/hbo.smil/manifest.mpd" },
+        { n: "AXN HD", i: "9d29f87efdec3c9fab368f724e62ad0e", k: "6f1c09c035eab36323d60d1454db3d20", u: "https://s7771.cdn.mytvnet.vn/pkg20/live_dzones/axn.smil/manifest.mpd" },
+        { n: "CINEMAX", i: "acb4c23471063327adc732e283c0847f", k: "e9868f51473d0fd859ede48d531c2b0", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/max.smil/manifest.mpd" },
+        { n: "CINEMA WORLD", i: "ee7915564d7439d09bd3556fccc87a4a", k: "b35e12a75a42e5f9184723a90ff42d9c", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/cinemaworld.smil/manifest.mpd" },
+        { n: "ANIMAL PLANET", i: "ec6f072c7125377a9bc0ae61598095f4", k: "1d5388e0781415ebcec99f4f5ad75875", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/ap.smil/manifest.mpd" },
+        { n: "DREAMWORKS", i: "67dae20527c3dadaae503aa91577cb", k: "59328f621d56767bc5ff9404a8f94016", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/dreamwork.smil/manifest.mpd" },
+        { n: "CARTOONITO", i: "b1f0d759e914369db388b3b0dc815971", k: "5678d317e17007a88a9b9539e4526512", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/boomerang.smil/manifest.mpd" },
+        { n: "BBC LIFESTYLE", i: "58b949986ed13294bc01b0f330abc527", k: "23e8c5f2fe202906ac2d6554d9527299", u: "https://s7770.cdn.mytvnet.vn/pkg20/live_dzones/bbclifestyle.smil/manifest.mpd" },
+        { n: "BBC WORLD NEWS", i: "c7ba46086dda345a929e29bf155e4d37", k: "4b8f39904bf572689ea347ae86591", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/bbcworldnews.smil/manifest.mpd" }
+    ];
 
-        // Lấy dữ liệu từ URL
-        const params = new URLSearchParams(window.location.search);
-        const url = params.get('videoUrl');
-        const keys = params.get('keys');
-
-        if (!url || !keys) {
-            document.querySelector('#boot-screen div').innerText = "VUI LÒNG DÁN LINK HỢP LỆ";
-            return;
-        }
-
-        // Tách KID và KEY
-        const [kid, key] = keys.split(':');
-
-        // Cấu hình giống Box thật
-        player.configure({
-            drm: { clearKeys: { [kid]: key } },
-            abr: { enabled: true }
+    let p;
+    async function init() {
+        p = new shaka.Player(document.getElementById('v'));
+        p.getNetworkingEngine().registerRequestFilter((t, r) => {
+            r.headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/115.0 Safari/537.36';
         });
-
-        player.getNetworkingEngine().registerRequestFilter((type, request) => {
-            request.headers['User-Agent'] = 'Mozilla/5.0 (VTV Prime Box; Linux) AppleWebKit/537.36';
+        const m = document.getElementById('menu');
+        DATA.forEach((c, idx) => {
+            const d = document.createElement('div');
+            d.className = 'ch'; d.id = 'c'+idx; d.innerText = c.n;
+            d.onclick = () => play(idx);
+            m.appendChild(d);
         });
-
-        try {
-            await player.load(url);
-            
-            // Xử lý UI
-            boot.style.display = 'none';
-            infobar.classList.add('show');
-            
-            // Lấy tên kênh từ link (ví dụ: hbo, axn, ap)
-            const chMatch = url.match(/live_dzones\/(.*?)\.smil/);
-            const chName = chMatch ? chMatch[1].toUpperCase() : "KÊNH QUỐC TẾ";
-            document.getElementById('display-name').innerText = chName;
-
-            // Tự ẩn info sau 5 giây
-            setTimeout(() => infobar.classList.remove('show'), 5000);
-        } catch (e) {
-            console.error(e);
-        }
+        play(0);
     }
-
-    // Đồng hồ góc màn hình
-    setInterval(() => {
-        const now = new Date();
-        document.getElementById('clock').innerText = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
-    }, 1000);
-
+    async function play(idx) {
+        document.querySelectorAll('.ch').forEach(s => s.classList.remove('active'));
+        document.getElementById('c'+idx).classList.add('active');
+        p.configure({ drm: { clearKeys: { [DATA[idx].i]: DATA[idx].k } } });
+        await p.load(DATA[idx].u);
+    }
     shaka.polyfill.installAll();
-    startPrimeBox();
+    init();
 </script>
 </body>
 </html>
+
