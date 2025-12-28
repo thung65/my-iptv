@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TV SMART - CLEAN & ORGANIZED</title>
+    <title>TV VIP - CLEAN VERSION</title>
     <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mux.js/6.0.1/mux.min.js"></script>
@@ -13,23 +13,24 @@
         :root { --gold: #ffcc00; --bg: #000; --card: #151515; }
         body { margin: 0; background: var(--bg); color: #fff; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
         
-        /* Player Box */
+        /* Player Area */
         #video-box { width: 100%; max-width: 960px; margin: 0 auto; background: #000; aspect-ratio: 16/9; position: sticky; top: 0; z-index: 99; border-bottom: 2px solid var(--gold); }
-        video { width: 100%; height: 100%; }
+        video { width: 100%; height: 100%; outline: none; }
 
-        /* Tabs phân loại - Giúp không bị lẫn kênh */
+        /* Navigation Tabs */
         .tabs { display: flex; overflow-x: auto; background: #111; padding: 10px; gap: 8px; border-bottom: 1px solid #222; scrollbar-width: none; }
         .tabs::-webkit-scrollbar { display: none; }
-        .tabs button { padding: 8px 16px; border: none; border-radius: 4px; background: #222; color: #888; white-space: nowrap; font-size: 11px; font-weight: bold; cursor: pointer; text-transform: uppercase; }
+        .tabs button { padding: 8px 16px; border: none; border-radius: 4px; background: #222; color: #888; white-space: nowrap; font-size: 11px; font-weight: bold; cursor: pointer; text-transform: uppercase; transition: 0.3s; }
         .tabs button.active { background: var(--gold); color: #000; }
 
-        /* Danh sách kênh */
+        /* Channel Grid */
         #list { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; padding: 15px; overflow-y: auto; flex: 1; }
         .item { background: var(--card); border-radius: 8px; padding: 12px 5px; text-align: center; cursor: pointer; border: 1px solid #222; position: relative; transition: 0.2s; }
-        .item.active { border-color: var(--gold); background: #221f00; border-bottom: 3px solid var(--gold); }
+        .item:hover { background: #202020; }
+        .item.active { border-color: var(--gold); background: #221f00; border-bottom: 4px solid var(--gold); }
         
         .img-wrap { width: 100%; height: 45px; display: flex; align-items: center; justify-content: center; margin-bottom: 5px; overflow: hidden; }
-        .item img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .item img { max-width: 85%; max-height: 100%; object-fit: contain; }
         .item span { font-size: 10px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: bold; color: #ccc; text-transform: uppercase; }
     </style>
 </head>
@@ -50,51 +51,11 @@
 <div id="list"></div>
 
 <script>
+    const GITHUB_URL = "https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123";
+    let video, player, allData = [], curTab = "QUỐC TẾ", curIdx = 0;
 
-  
-    ];
-
-    function cleanName(name) {
-        if (!name) return "";
-        return name.replace(/HD/gi, "").replace(/VIP/gi, "").replace(/VTVCAB/gi, "").replace(/SCTV/gi, "").trim();
-    }
-
-    function toHex(b64) {
-        try {
-            const bin = atob(b64.replace(/-/g, '+').replace(/_/g, '/'));
-            let res = "";
-            for (let i = 0; i < bin.length; i++) {
-                let h = bin.charCodeAt(i).toString(16);
-                res += (h.length === 1 ? '0' : '') + h;
-            }
-            return res;
-        } catch(e) { return ""; }
-    }
-
-    async function start() {
-        video = document.getElementById('video');
-        shaka.polyfill.installAll();
-        if (shaka.Player.isBrowserSupported()) {
-            player = new shaka.Player(video);
-            await load();
-            render();
-            if(allData.length > 0) play(0);
-        }
-    }
-
-    async function load() {
-        let vnChannels = [];
-        try {
-            const r = await fetch(GITHUB);
-            const txt = await r.text();
-            let cur = null;
-            txt.split('\n').forEach(line => {
-                if (line.includes('#EXTINF')) {
-                    const name = line.split(',')[1]?.trim() || "Kênh";
-                    const nU = name.toUpperCase();
-                    let logoMatch = line.match(/(?:tvg-logo|logo|tvg-logo-url)="([^"]+)"/i);
-     // Danh sách các kênh chuẩn (Đã gộp VTV và Quốc Tế)
-    const FIXED_INT =[
+    // TỔNG HỢP DANH SÁCH CỐ ĐỊNH (VTV + QUỐC TẾ)
+    const FIXED_CHANNELS = [
         // NHÓM VTV
         { n: "VTV1", u: "https://live.fptplay53.net/fnxch2/vtv1hd_abr.smil/chunklist_b4200000.m3u8", l: "https://vnepg.site/logos/1.png", g: "VTV" },
         { n: "VTV2", u: "https://live.fptplay53.net/fnxch2/vtv2hd_abr.smil/chunklist_b4200000.m3u8", l: "https://vnepg.site/logos/2.png", g: "VTV" },
@@ -132,8 +93,48 @@
         { n: "BBC LIFESTYLE", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/bbclifestyle.smil/manifest.mpd", i: "WLlJmG7RMpS8AbDzMKvFJw", k: "I+jF8v4gKQasLWVU2VJymQ", l: "https://vnepg.site/logos/149.png", g: "QUỐC TẾ" },
         { n: "FASHION TV", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/ftv.smil/manifest.mpd", i: "wdnyVwECNQi/pnN+OoxwAQ", k: "MMNhPpsG4PfMIBAU8xv12A", l: "https://vnepg.site/logos/165.png", g: "QUỐC TẾ" }
     ];
-                   
-                    // Phân loại nhóm thông minh
+
+    function cleanName(name) {
+        if (!name) return "";
+        return name.replace(/HD/gi, "").replace(/VIP/gi, "").replace(/VTVCAB/gi, "").replace(/SCTV/gi, "").trim();
+    }
+
+    function toHex(b64) {
+        try {
+            const bin = atob(b64.replace(/-/g, '+').replace(/_/g, '/'));
+            let res = "";
+            for (let i = 0; i < bin.length; i++) {
+                let h = bin.charCodeAt(i).toString(16);
+                res += (h.length === 1 ? '0' : '') + h;
+            }
+            return res;
+        } catch(e) { return ""; }
+    }
+
+    async function start() {
+        video = document.getElementById('video');
+        shaka.polyfill.installAll();
+        if (shaka.Player.isBrowserSupported()) {
+            player = new shaka.Player(video);
+            player.configure({ streaming: { bufferingGoal: 10, jumpLargeGaps: true } });
+            await loadData();
+            renderList();
+            if(allData.length > 0) playChannel(0);
+        }
+    }
+
+    async function loadData() {
+        let externalChannels = [];
+        try {
+            const r = await fetch(GITHUB_URL);
+            const txt = await r.text();
+            let cur = null;
+            txt.split('\n').forEach(line => {
+                if (line.includes('#EXTINF')) {
+                    const name = line.split(',')[1]?.trim() || "Kênh";
+                    const nU = name.toUpperCase();
+                    let logoMatch = line.match(/(?:tvg-logo|logo|tvg-logo-url)="([^"]+)"/i);
+                    
                     let g = "ĐỊA PHƯƠNG";
                     if (nU.includes("VTVCAB") || nU.includes("ON ")) g = "VTVCAB";
                     else if (nU.includes("SCTV")) g = "SCTV";
@@ -142,34 +143,43 @@
 
                     cur = { n: name, u: "", l: logoMatch ? logoMatch[1] : "", g: g };
                 } else if (line.startsWith('http') && cur) {
-                    cur.u = line.trim(); vnChannels.push(cur); cur = null;
+                    cur.u = line.trim(); externalChannels.push(cur); cur = null;
                 }
             });
-        } catch(e) {}
-        allData = [...FIXED_INT, ...vnChannels];
+        } catch(e) { console.error("Lỗi tải danh sách ngoại: ", e); }
+        
+        // Gộp danh sách chuẩn và danh sách tải về
+        allData = [...FIXED_CHANNELS, ...externalChannels];
     }
 
-    async function play(idx) {
-        curIdx = idx; render();
+    async function playChannel(idx) {
+        curIdx = idx; 
+        renderList();
         const ch = allData[idx];
+
+        // Xử lý DRM ClearKey cho các kênh Quốc Tế
         if (ch.i && ch.k) {
             player.configure({ drm: { clearKeys: { [toHex(ch.i)]: toHex(ch.k) } } });
         } else {
             player.configure({ drm: { clearKeys: {} } });
         }
+
         try {
             await player.load(ch.u);
             video.play();
         } catch (e) {
-            if (ch.u.includes('.m3u8')) { video.src = ch.u; video.play(); }
+            // Hỗ trợ dự phòng cho link .m3u8 trực tiếp nếu Shaka lỗi
+            if (ch.u.includes('.m3u8')) { 
+                video.src = ch.u; 
+                video.play(); 
+            }
         }
     }
 
-    function render() {
+    function renderList() {
         const box = document.getElementById('list');
         box.innerHTML = "";
         allData.forEach((ch, i) => {
-            // Lọc theo Tab đang chọn
             if (curTab !== 'ALL' && ch.g !== curTab) return;
             
             const div = document.createElement('div');
@@ -182,7 +192,7 @@
                 </div>
                 <span>${cleanName(ch.n)}</span>
             `;
-            div.onclick = () => play(i);
+            div.onclick = () => playChannel(i);
             box.appendChild(div);
         });
     }
@@ -191,10 +201,10 @@
         curTab = t;
         document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        render();
-        // Cuộn danh sách lên đầu khi đổi Tab
+        renderList();
         document.getElementById('list').scrollTop = 0;
     }
+
     start();
 </script>
 </body>
