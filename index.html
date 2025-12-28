@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TV VIP QUỐC TẾ - FINAL VERSION</title>
+    <title>TV CLEAN - NO MORE VIP TAGS</title>
     <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mux.js/6.0.1/mux.min.js"></script>
@@ -22,8 +22,9 @@
         .item.active { border-color: var(--gold); background: #221f00; border-bottom: 3px solid var(--gold); }
         .img-wrap { width: 100%; height: 45px; display: flex; align-items: center; justify-content: center; margin-bottom: 5px; overflow: hidden; }
         .item img { max-width: 100%; max-height: 100%; object-fit: contain; }
-        .item span { font-size: 10px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: bold; color: #ccc; }
-        .vip { position: absolute; top: 5px; right: 5px; background: var(--gold); color: #000; font-size: 8px; padding: 1px 4px; border-radius: 2px; font-weight: 900; z-index: 10; }
+        .item span { font-size: 10px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: bold; color: #ccc; text-transform: uppercase; }
+        
+        /* Đã xóa hoàn toàn class .vip để không còn gì đè lên logo */
     </style>
 </head>
 <body>
@@ -31,10 +32,10 @@
 <div id="video-box"><video id="video" controls autoplay playsinline></video></div>
 
 <div class="tabs">
-    <button class="active" onclick="setTab('QUỐC TẾ', this)">QUỐC TẾ VIP</button>
+    <button class="active" onclick="setTab('QUỐC TẾ', this)">QUỐC TẾ</button>
     <button onclick="setTab('ALL', this)">TẤT CẢ</button>
-    <button onclick="setTab('VTV', this)">VTV/THIẾT YẾU</button>
-    <button onclick="setTab('HTV', this)">HTV/HTVC</button>
+    <button onclick="setTab('VTV', this)">VTV</button>
+    <button onclick="setTab('HTV', this)">HTV</button>
 </div>
 
 <div id="list"></div>
@@ -43,30 +44,35 @@
     const GITHUB = "https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123";
     let video, player, allData = [], curTab = "QUỐC TẾ", curIdx = 0;
 
-    // DANH SÁCH 21 KÊNH QUỐC TẾ VIP ĐÃ FIX LOGO
     const FIXED_INT = [
-        { n: "HBO", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/hbo.smil/manifest.mpd", i: "Cd3+PWOGPK+ut50FRrCYqw", k: "PeDzjc8BSCff1b7Dh0PGog", l: "https://vnepg.site/logos/129.png", g: "QUỐC TẾ", v: true },
-        { n: "AXN", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/axn.smil/manifest.mpd", i: "nSn4fv3sPJ+rNo9ySmKtDg", k: "bxwJwDXqs2Mj1g0UVNs9IA", l: "https://vnepg.site/logos/163.png", g: "QUỐC TẾ", v: true },
-        { n: "CINEMAX", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/max.smil/manifest.mpd", i: "rLTCNHEGMyetxzLig8CEfw", k: "6YaPX0c9D9hpnt5I1THCsA", l: "https://vnepg.site/logos/130.png", g: "QUỐC TẾ", v: true },
-        { n: "KIX", u: "https://live.fptplay53.net/fnxhd2/kixhd_vhls.smil/chunklist_b5000000.m3u8", l: "https://vnepg.site/logos/167.png", g: "QUỐC TẾ", v: true },
-        { n: "CINEMAWORLD", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/cinemaworld.smil/manifest.mpd", i: "7nkVVk10OdCb01Vv/MyHpA", k: "s14Sp1pCpvkYRyOpD/QtnA", l: "https://vnepg.site/logos/164.png", g: "QUỐC TẾ", v: true },
-        { n: "WARNER TV", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/wtv.smil/manifest.mpd", i: "CG0JpAv/OgCqbdTbr5wTsg", k: "NPGQjP4uBe4GAEbUDxSuyQ", l: "https://vnepg.site/logos/169.png", g: "QUỐC TẾ", v: true },
-        { n: "DISCOVERY", u: "https://s7770.cdn.mytvnet.vn/pkg20/live_dzones/dsc.smil/manifest.mpd", i: "60Fg6lU6Mh2JlVPk55b+wg", k: "vqWgcVfgxNF7Eas5lRf5Ug", l: "https://vnepg.site/logos/144.png", g: "QUỐC TẾ", v: true },
-        { n: "DISCOVERY ASIA", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/dscasia.smil/manifest.mpd", i: "k0kHsTS+OWOmJjpFOEaSTA", k: "eI4oNfuYVortL0e73AkVFQ", l: "https://vnepg.site/logos/145.png", g: "QUỐC TẾ", v: true },
-        { n: "ANIMAL PLANET", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/ap.smil/manifest.mpd", i: "7G8HLHElN3qbwK5hWYCV9A", k: "HVOI4HgUFevOyZFPWtdYdQ", l: "https://vnepg.site/logos/143.png", g: "QUỐC TẾ", v: true },
-        { n: "DMAX", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/dmax.smil/manifest.mpd", i: "U7JvkErgOiC1ZHfPucXcog", k: "DGTM+5eOc5C9MzRAdUkq7A", l: "https://106b9c59d.vws.vegacdn.vn/rBN9EfEEFSyoELIQDjEu/3000x3000x1710918082/cmc_new/img.live_channel/0/0/0/0/271.jpg", g: "QUỐC TẾ", v: true },
-        { n: "TLC", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/tlc.smil/manifest.mpd", i: "tpCGKXMmOa2kgUpiCCltnA", k: "fKm/A2I/d7Xi8W3wtT8nTQ", l: "https://vnepg.site/logos/168.png", g: "QUỐC TẾ", v: true },
-        { n: "CNN", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/cnn.smil/manifest.mpd", i: "cUzI7QWgOruaxhvUu9HYoA", k: "Gs9Y/41M2HwtPBLSIkjvsQ", l: "https://vnepg.site/logos/156.png", g: "QUỐC TẾ", v: true },
-        { n: "BBC NEWS", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/bbcworldnews.smil/manifest.mpd", i: "x7pGCG3aNFqSnim/FV5FnA", k: "03S485kEv1cmieo0euhlkQ", l: "https://vnepg.site/logos/151.png", g: "QUỐC TẾ", v: true },
-        { n: "BLOOMBERG", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/bloomberg.smil/manifest.mpd", i: "EHE5P4/CN/OpooAoFCEQ9w", k: "eg+MPHLg//+BHVNMkpxXwg", l: "https://vnepg.site/logos/154.png", g: "QUỐC TẾ", v: true },
-        { n: "CARTOON NETWORK", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/cn.smil/manifest.mpd", i: "PCAWZmCpOnWsd9uBVnOJ9w", k: "PMGt1Drszj/jHJxqKluMIQ", l: "https://vnepg.site/logos/140.png", g: "QUỐC TẾ", v: true },
-        { n: "CARTOONITO", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/boomerang.smil/manifest.mpd", i: "sfDXWekUNp2ziLOw3IFZcQ", k: "VnjTF-FwB6iKm5U55FJlEg", l: "https://vnepg.site/logos/138.png", g: "QUỐC TẾ", v: true },
-        { n: "DREAMWORKS", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/dreamwork.smil/manifest.mpd", i: "Z9riBSfGPa2qrmCaqRV3yw", k: "WTKPYh1WdnvF/5QEqJQGgw", l: "https://vnepg.site/logos/141.png", g: "QUỐC TẾ", v: true },
-        { n: "BBC EARTH", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/bbcearth.smil/manifest.mpd", i: "UBSUGixCN5iAte33IwTBZQ", k: "8/oP4805pS9O79Nv9xYeiQ", l: "https://vnepg.site/logos/148.png", g: "QUỐC TẾ", v: true },
-        { n: "BBC CBEEBIES", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/cbb.smil/manifest.mpd", i: "zKc6AGtLOaWVIHzrXtnKCg", k: "uDPR9AwmHveIlvl+BvgM3A", l: "https://vnepg.site/logos/150.png", g: "QUỐC TẾ", v: true },
-        { n: "BBC LIFESTYLE", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/bbclifestyle.smil/manifest.mpd", i: "WLlJmG7RMpS8AbDzMKvFJw", k: "I+jF8v4gKQasLWVU2VJymQ", l: "https://vnepg.site/logos/149.png", g: "QUỐC TẾ", v: true },
-        { n: "FASHION TV", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/ftv.smil/manifest.mpd", i: "wdnyVwECNQi/pnN+OoxwAQ", k: "MMNhPpsG4PfMIBAU8xv12A", l: "https://vnepg.site/logos/165.png", g: "QUỐC TẾ", v: true }
+        { n: "HBO", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/hbo.smil/manifest.mpd", i: "Cd3+PWOGPK+ut50FRrCYqw", k: "PeDzjc8BSCff1b7Dh0PGog", l: "https://vnepg.site/logos/129.png", g: "QUỐC TẾ" },
+        { n: "AXN", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/axn.smil/manifest.mpd", i: "nSn4fv3sPJ+rNo9ySmKtDg", k: "bxwJwDXqs2Mj1g0UVNs9IA", l: "https://vnepg.site/logos/163.png", g: "QUỐC TẾ" },
+        { n: "CINEMAX", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/max.smil/manifest.mpd", i: "rLTCNHEGMyetxzLig8CEfw", k: "6YaPX0c9D9hpnt5I1THCsA", l: "https://vnepg.site/logos/130.png", g: "QUỐC TẾ" },
+        { n: "KIX", u: "https://live.fptplay53.net/fnxhd2/kixhd_vhls.smil/chunklist_b5000000.m3u8", l: "https://vnepg.site/logos/167.png", g: "QUỐC TẾ" },
+        { n: "CINEMAWORLD", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/cinemaworld.smil/manifest.mpd", i: "7nkVVk10OdCb01Vv/MyHpA", k: "s14Sp1pCpvkYRyOpD/QtnA", l: "https://vnepg.site/logos/164.png", g: "QUỐC TẾ" },
+        { n: "WARNER TV", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/wtv.smil/manifest.mpd", i: "CG0JpAv/OgCqbdTbr5wTsg", k: "NPGQjP4uBe4GAEbUDxSuyQ", l: "https://vnepg.site/logos/169.png", g: "QUỐC TẾ" },
+        { n: "DISCOVERY", u: "https://s7770.cdn.mytvnet.vn/pkg20/live_dzones/dsc.smil/manifest.mpd", i: "60Fg6lU6Mh2JlVPk55b+wg", k: "vqWgcVfgxNF7Eas5lRf5Ug", l: "https://vnepg.site/logos/144.png", g: "QUỐC TẾ" },
+        { n: "DISCOVERY ASIA", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/dscasia.smil/manifest.mpd", i: "k0kHsTS+OWOmJjpFOEaSTA", k: "eI4oNfuYVortL0e73AkVFQ", l: "https://vnepg.site/logos/145.png", g: "QUỐC TẾ" },
+        { n: "ANIMAL PLANET", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/ap.smil/manifest.mpd", i: "7G8HLHElN3qbwK5hWYCV9A", k: "HVOI4HgUFevOyZFPWtdYdQ", l: "https://vnepg.site/logos/143.png", g: "QUỐC TẾ" },
+        { n: "DMAX", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/dmax.smil/manifest.mpd", i: "U7JvkErgOiC1ZHfPucXcog", k: "DGTM+5eOc5C9MzRAdUkq7A", l: "https://106b9c59d.vws.vegacdn.vn/rBN9EfEEFSyoELIQDjEu/3000x3000x1710918082/cmc_new/img.live_channel/0/0/0/0/271.jpg", g: "QUỐC TẾ" },
+        { n: "TLC", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/tlc.smil/manifest.mpd", i: "tpCGKXMmOa2kgUpiCCltnA", k: "fKm/A2I/d7Xi8W3wtT8nTQ", l: "https://vnepg.site/logos/168.png", g: "QUỐC TẾ" },
+        { n: "CNN", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/cnn.smil/manifest.mpd", i: "cUzI7QWgOruaxhvUu9HYoA", k: "Gs9Y/41M2HwtPBLSIkjvsQ", l: "https://vnepg.site/logos/156.png", g: "QUỐC TẾ" },
+        { n: "BBC NEWS", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/bbcworldnews.smil/manifest.mpd", i: "x7pGCG3aNFqSnim/FV5FnA", k: "03S485kEv1cmieo0euhlkQ", l: "https://vnepg.site/logos/151.png", g: "QUỐC TẾ" },
+        { n: "BLOOMBERG", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/bloomberg.smil/manifest.mpd", i: "EHE5P4/CN/OpooAoFCEQ9w", k: "eg+MPHLg//+BHVNMkpxXwg", l: "https://vnepg.site/logos/154.png", g: "QUỐC TẾ" },
+        { n: "CARTOON NETWORK", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/cn.smil/manifest.mpd", i: "PCAWZmCpOnWsd9uBVnOJ9w", k: "PMGt1Drszj/jHJxqKluMIQ", l: "https://vnepg.site/logos/140.png", g: "QUỐC TẾ" },
+        { n: "CARTOONITO", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/boomerang.smil/manifest.mpd", i: "sfDXWekUNp2ziLOw3IFZcQ", k: "VnjTF-FwB6iKm5U55FJlEg", l: "https://vnepg.site/logos/138.png", g: "QUỐC TẾ" },
+        { n: "DREAMWORKS", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/dreamwork.smil/manifest.mpd", i: "Z9riBSfGPa2qrmCaqRV3yw", k: "WTKPYh1WdnvF/5QEqJQGgw", l: "https://vnepg.site/logos/141.png", g: "QUỐC TẾ" },
+        { n: "BBC EARTH", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/bbcearth.smil/manifest.mpd", i: "UBSUGixCN5iAte33IwTBZQ", k: "8/oP4805pS9O79Nv9xYeiQ", l: "https://vnepg.site/logos/148.png", g: "QUỐC TẾ" },
+        { n: "BBC CBEEBIES", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/cbb.smil/manifest.mpd", i: "zKc6AGtLOaWVIHzrXtnKCg", k: "uDPR9AwmHveIlvl+BvgM3A", l: "https://vnepg.site/logos/150.png", g: "QUỐC TẾ" },
+        { n: "BBC LIFESTYLE", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/bbclifestyle.smil/manifest.mpd", i: "WLlJmG7RMpS8AbDzMKvFJw", k: "I+jF8v4gKQasLWVU2VJymQ", l: "https://vnepg.site/logos/149.png", g: "QUỐC TẾ" },
+        { n: "FASHION TV", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/ftv.smil/manifest.mpd", i: "wdnyVwECNQi/pnN+OoxwAQ", k: "MMNhPpsG4PfMIBAU8xv12A", l: "https://vnepg.site/logos/165.png", g: "QUỐC TẾ" }
     ];
+
+    // BỘ LỌC THÔNG MINH: Xóa sạch HD, VIP, VTVCAB trong tên kênh
+    function cleanName(name) {
+        if (!name) return "";
+        return name.replace(/HD/gi, "").replace(/VIP/gi, "").replace(/VTVCAB/gi, "").trim();
+    }
 
     function toHex(b64) {
         try {
@@ -85,12 +91,10 @@
         shaka.polyfill.installAll();
         if (shaka.Player.isBrowserSupported()) {
             player = new shaka.Player(video);
-            player.configure({
-                streaming: { bufferingGoal: 10, jumpLargeGaps: true }
-            });
+            player.configure({ streaming: { bufferingGoal: 10, jumpLargeGaps: true } });
             await load();
             render();
-            if(FIXED_INT.length > 0) play(0);
+            if(allData.length > 0) play(0);
         }
     }
 
@@ -103,15 +107,14 @@
             txt.split('\n').forEach(line => {
                 if (line.includes('#EXTINF')) {
                     const name = line.split(',')[1]?.trim() || "Kênh";
-                    const nU = name.toUpperCase();
                     let logoMatch = line.match(/(?:tvg-logo|logo|tvg-logo-url)="([^"]+)"/i);
-                    let logo = logoMatch ? logoMatch[1] : "";
-                    let g = "ĐỊA PHƯƠNG", vip = false;
-                    if (nU.includes("VTVCAB") || nU.includes("ON ")) { g = "VTVCAB"; vip = true; }
-                    else if (nU.includes("SCTV")) { g = "SCTV"; vip = true; }
-                    else if (nU.includes("HTV")) { g = "HTV"; vip = nU.includes("HTVC"); }
-                    else if (nU.includes("VTV")) { g = "VTV"; vip = !["VTV1","VTV2","VTV3"].some(k => nU === k); }
-                    cur = { n: name, u: "", l: logo, g: g, v: vip };
+                    let g = "ĐỊA PHƯƠNG";
+                    const nU = name.toUpperCase();
+                    if (nU.includes("VTVCAB") || nU.includes("ON ")) g = "VTVCAB";
+                    else if (nU.includes("SCTV")) g = "SCTV";
+                    else if (nU.includes("HTV")) g = "HTV";
+                    else if (nU.includes("VTV")) g = "VTV";
+                    cur = { n: name, u: "", l: logoMatch ? logoMatch[1] : "", g: g };
                 } else if (line.startsWith('http') && cur) {
                     cur.u = line.trim(); vnChannels.push(cur); cur = null;
                 }
@@ -143,14 +146,15 @@
             if (curTab !== 'ALL' && ch.g !== curTab) return;
             const div = document.createElement('div');
             div.className = `item ${curIdx === i ? 'active' : ''}`;
+            
+            // Đã xóa hoàn toàn điều kiện hiển thị chữ VIP ở đây
             div.innerHTML = `
-                ${ch.v ? '<div class="vip">VIP</div>' : ''}
                 <div class="img-wrap">
                     <img src="${ch.l || 'https://via.placeholder.com/100x45/222/555?text=TV'}" 
                          referrerpolicy="no-referrer" 
                          onerror="this.src='https://via.placeholder.com/100x45/222/555?text=TV'">
                 </div>
-                <span>${ch.n}</span>
+                <span>${cleanName(ch.n)}</span>
             `;
             div.onclick = () => play(i);
             box.appendChild(div);
