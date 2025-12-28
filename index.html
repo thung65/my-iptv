@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IPTV VIP - FIXED LOGO DMAX</title>
+    <title>IPTV VIP - FULL SUPPORT DASH & HLS</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
         :root { --accent: #00ff42; --bg: #000; }
         body { margin: 0; background: var(--bg); color: #fff; font-family: sans-serif; display: flex; height: 100vh; overflow: hidden; }
@@ -15,9 +16,8 @@
         .item { padding: 12px; cursor: pointer; border-bottom: 1px solid #1a1a1a; display: flex; align-items: center; font-size: 13px; }
         .item:hover { background: #252525; }
         .item.active { background: #102a16; color: var(--accent); border-left: 4px solid var(--accent); }
-        /* Cố định kích thước logo để không bị vỡ ảnh */
         .logo { width: 60px; height: 40px; object-fit: contain; margin-right: 12px; background: #111; border-radius: 4px; border: 1px solid #333; }
-        #main { flex: 1; background: #000; }
+        #main { flex: 1; background: #000; display: flex; align-items: center; justify-content: center; }
         video { width: 100%; height: 100%; }
         .tag-vip { font-size: 9px; padding: 1px 4px; background: var(--accent); color: #000; border-radius: 2px; margin-left: auto; font-weight: bold; }
     </style>
@@ -25,7 +25,7 @@
 <body>
 
 <div id="sidebar">
-    <div class="header">IPTV VIP - LOGO FIXED</div>
+    <div class="header">IPTV MULTI-DECODER</div>
     <div id="list"></div>
 </div>
 <div id="main"><video id="video" autoplay controls playsinline></video></div>
@@ -35,7 +35,6 @@
         { n: "HBO HD", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/hbo.smil/manifest.mpd", i: "Cd3+PWOGPK+ut50FRrCYqw", k: "PeDzjc8BSCff1b7Dh0PGog", l: "https://vnepg.site/logos/129.png" },
         { n: "AXN HD", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/axn.smil/manifest.mpd", i: "nSn4fv3sPJ+rNo9ySmKtDg", k: "bxwJwDXqs2Mj1g0UVNs9IA", l: "https://vnepg.site/logos/163.png" },
         { n: "CINEMAX HD", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/max.smil/manifest.mpd", i: "rLTCNHEGMyetxzLig8CEfw", k: "6YaPX0c9D9hpnt5I1THCsA", l: "https://vnepg.site/logos/130.png" },
-        // Logo DMAX được xử lý đặc biệt ở đây
         { n: "DMAX", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/dmax.smil/manifest.mpd", i: "U7JvkErgOiC1ZHfPucXcog", k: "DGTM+5eOc5C9MzRAdUkq7A", l: "https://106b9c59d.vws.vegacdn.vn/rBN9EfEEFSyoELIQDjEu/1200x1200x0/cmc_new/img.live_channel/0/0/0/0/271.jpg" },
         { n: "DISCOVERY HD", u: "https://s7770.cdn.mytvnet.vn/pkg20/live_dzones/dsc.smil/manifest.mpd", i: "60Fg6lU6Mh2JlVPk55b+wg", k: "vqWgcVfgxNF7Eas5lRf5Ug", l: "https://vnepg.site/logos/144.png" },
         { n: "DISCOVERY ASIA HD", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/dscasia.smil/manifest.mpd", i: "k0kHsTS+OWOmJjpFOEaSTA", k: "eI4oNfuYVortL0e73AkVFQ", l: "https://vnepg.site/logos/145.png" },
@@ -58,7 +57,7 @@
 
     const GITHUB_URL = "https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123";
     let allChannels = [];
-    let player, currentIdx = 0;
+    let player, hlsPlayer, currentIdx = 0;
 
     function toUint8Array(base64) {
         const binary = atob(base64.replace(/-/g, '+').replace(/_/g, '/'));
@@ -68,11 +67,10 @@
     async function init() {
         shaka.polyfill.installAll();
         player = new shaka.Player(document.getElementById('video'));
-        player.getNetworkingEngine().registerRequestFilter((type, request) => {
-            request.headers['User-Agent'] = 'Dalvik/2.1.0 (Linux; U; Android 12)';
-        });
-
+        
+        // Nhóm VIP
         VIP_CHANNELS.forEach(c => allChannels.push({...c, g: "QUỐC TẾ GIẢI MÃ VIP"}));
+        
         await fetchAndProcessList();
         render();
         play(0);
@@ -126,10 +124,8 @@
             }
             const item = document.createElement('div');
             item.className = 'item' + (currentIdx === idx ? ' active' : '');
-            
-            // Fix Logo: Nếu link bị chặn (403), thử thêm referrer chính nó hoặc dùng placeholder
             item.innerHTML = `
-                <img class="logo" src="${ch.l}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='https://via.placeholder.com/60x40/222/fff?text=No+Img';">
+                <img class="logo" src="${ch.l}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='https://via.placeholder.com/60x40/222/fff?text=TV';">
                 <span>${ch.n}</span>
                 ${ch.i ? '<span class="tag-vip">VIP</span>' : ''}
             `;
@@ -141,17 +137,38 @@
     async function play(idx) {
         currentIdx = idx; render();
         const ch = allChannels[idx];
+        const video = document.getElementById('video');
+
+        // Reset cả hai trình phát trước khi đổi kênh
+        if (hlsPlayer) { hlsPlayer.destroy(); hlsPlayer = null; }
         await player.unload();
+
         try {
-            if (ch.i) {
-                const kid = toUint8Array(ch.i), key = toUint8Array(ch.k);
-                player.configure({ drm: { clearKeys: { [shaka.util.Uint8ArrayUtils.toHex(kid)]: shaka.util.Uint8ArrayUtils.toHex(key) } } });
-            } else { player.configure({ drm: { clearKeys: {} } }); }
-            await player.load(ch.u);
-        } catch (e) { console.error(e); }
+            // Trường hợp 1: DASH (Dùng Shaka)
+            if (ch.u.includes('.mpd')) {
+                if (ch.i) {
+                    const kid = toUint8Array(ch.i), key = toUint8Array(ch.k);
+                    player.configure({ 
+                        drm: { clearKeys: { [shaka.util.Uint8ArrayUtils.toHex(kid)]: shaka.util.Uint8ArrayUtils.toHex(key) } } 
+                    });
+                } else {
+                    player.configure({ drm: { clearKeys: {} } });
+                }
+                await player.load(ch.u);
+            } 
+            // Trường hợp 2: HLS (Dùng Hls.js)
+            else if (ch.u.includes('.m3u8') || !ch.i) {
+                if (Hls.isSupported()) {
+                    hlsPlayer = new Hls();
+                    hlsPlayer.loadSource(ch.u);
+                    hlsPlayer.attachMedia(video);
+                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    video.src = ch.u;
+                }
+            }
+        } catch (e) { console.error("Lỗi phát kênh:", e); }
     }
     init();
 </script>
 </body>
 </html>
-
