@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>XEM CÁC KÊNH MIỄN PHÍ</title>
+    <title>TV VIP - DUAL FIX FINAL</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
     <style>
         :root { --gold: #ffcc00; --bg: #000; --card: #151515; }
@@ -81,7 +81,6 @@
         { n: "BBC LIFESTYLE", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/bbclifestyle.smil/manifest.mpd", i: "WLlJmG7RMpS8AbDzMKvFJw", k: "I+jF8v4gKQasLWVU2VJymQ", l: "https://vnepg.site/logos/149.png", g: "QUỐC TẾ" },
         { n: "FASHION TV", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/ftv.smil/manifest.mpd", i: "wdnyVwECNQi/pnN+OoxwAQ", k: "MMNhPpsG4PfMIBAU8xv12A", l: "https://vnepg.site/logos/165.png", g: "QUỐC TẾ" }
     ];
-
     function toHex(b64) {
         try {
             const bin = atob(b64.replace(/-/g, '+').replace(/_/g, '/'));
@@ -96,6 +95,7 @@
         shaka.polyfill.installAll();
         player = new shaka.Player(video);
         
+        // Cấu hình giả lập để tránh bị chặn IP/Referer
         player.getNetworkingEngine().registerRequestFilter((type, request) => {
             request.headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
         });
@@ -134,23 +134,31 @@
         curIdx = idx; renderList();
         const ch = allData[idx];
 
-        // 1. DỪNG TRÌNH PHÁT VÀ XÓA CẤU HÌNH CŨ
+        // BƯỚC 1: Hủy trình phát cũ hoàn toàn để làm sạch bộ nhớ DRM
         await player.unload();
-        player.configure({ drm: { clearKeys: {} } }); 
 
-        // 2. NẾU LÀ KÊNH QUỐC TẾ (CÓ DRM) -> NẠP KHÓA MỚI
+        // BƯỚC 2: Cấu hình lại từ đầu cho trình phát (Mấu chốt để phát chung được)
         if (ch.i && ch.k) {
+            // Nếu là kênh Quốc tế có DRM
             let drmConfig = {};
             drmConfig[toHex(ch.i)] = toHex(ch.k);
-            player.configure({ drm: { clearKeys: drmConfig } });
+            player.configure({
+                drm: { clearKeys: drmConfig }
+            });
+        } else {
+            // Nếu là kênh thường, XÓA HẲN cấu hình DRM cũ
+            player.configure({
+                drm: { clearKeys: {} }
+            });
         }
 
-        // 3. TIẾN HÀNH PHÁT
+        // BƯỚC 3: Tải kênh
         try {
             await player.load(ch.u);
             video.play();
         } catch (e) {
-            // Dự phòng cho m3u8 nếu Shaka lỗi
+            // Dự phòng cho link m3u8 nếu Shaka kén định dạng
+            console.log("Shaka Fallback to Native");
             video.src = ch.u;
             video.play();
         }
@@ -163,7 +171,7 @@
             if (curTab !== 'ALL' && ch.g !== curTab) return;
             const div = document.createElement('div');
             div.className = `item ${curIdx === i ? 'active' : ''}`;
-            // GIỮ NGUYÊN HD
+            // GIỮ NGUYÊN HD THEO Ý BẠN
             div.innerHTML = `<div class="img-wrap"><img src="${ch.l}" referrerpolicy="no-referrer" onerror="this.src='https://via.placeholder.com/100x45/222/555?text=TV'"></div><span>${ch.n}</span>`;
             div.onclick = () => playChannel(i);
             box.appendChild(div);
