@@ -3,33 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IPTV ULTIMATE DECODER</title>
+    <title>IPTV VIP FULL LIST</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
     <style>
         :root { --accent: #00ff42; --bg: #000; }
-        body { margin: 0; background: var(--bg); color: #fff; font-family: sans-serif; display: flex; height: 100vh; }
-        #sidebar { width: 320px; background: #111; border-right: 1px solid #333; display: flex; flex-direction: column; }
-        .header { padding: 15px; background: #1a1a1a; border-bottom: 2px solid var(--accent); text-align: center; font-weight: bold; color: var(--accent); }
-        #list { flex: 1; overflow-y: auto; }
-        .item { padding: 12px; cursor: pointer; border-bottom: 1px solid #222; display: flex; align-items: center; font-size: 13px; }
-        .item:hover { background: #222; }
+        body { margin: 0; background: var(--bg); color: #fff; font-family: sans-serif; display: flex; height: 100vh; overflow: hidden; }
+        #sidebar { width: 350px; background: #111; border-right: 1px solid #333; display: flex; flex-direction: column; }
+        .header { padding: 15px; background: #1a1a1a; border-bottom: 2px solid var(--accent); text-align: center; }
+        #list { flex: 1; overflow-y: auto; scrollbar-width: thin; }
+        .g-title { background: #222; padding: 10px; font-size: 11px; color: #aaa; text-transform: uppercase; position: sticky; top: 0; z-index: 10; }
+        .item { padding: 12px; cursor: pointer; border-bottom: 1px solid #1a1a1a; display: flex; align-items: center; font-size: 13px; }
+        .item:hover { background: #252525; }
         .item.active { background: #102a16; color: var(--accent); border-left: 4px solid var(--accent); }
-        .logo { width: 45px; height: 30px; object-fit: contain; margin-right: 12px; background: #000; border-radius: 4px; }
-        #main { flex: 1; position: relative; }
+        .logo { width: 50px; height: 32px; object-fit: contain; margin-right: 12px; background: #000; border-radius: 4px; }
+        #main { flex: 1; background: #000; }
         video { width: 100%; height: 100%; }
+        .tag-vip { font-size: 9px; padding: 1px 4px; background: var(--accent); color: #000; border-radius: 2px; margin-left: auto; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div id="sidebar">
-    <div class="header">21 KÊNH QUỐC TẾ GIẢI MÃ</div>
+    <div class="header"><b style="color:var(--accent)">IPTV VIP & GITHUB LIST</b></div>
     <div id="list"></div>
 </div>
 <div id="main"><video id="video" autoplay controls playsinline></video></div>
 
 <script>
-    // TOÀN BỘ 21 KÊNH VỚI LOGO ĐÃ SỬA THEO YÊU CẦU
-    const CHANNELS = [
+    // 1. DANH SÁCH 21 KÊNH GIẢI MÃ VIP (CỨNG TRONG CODE)
+    const VIP_CHANNELS = [
         { n: "HBO HD", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/hbo.smil/manifest.mpd", i: "Cd3+PWOGPK+ut50FRrCYqw", k: "PeDzjc8BSCff1b7Dh0PGog", l: "https://vnepg.site/logos/129.png" },
         { n: "AXN HD", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/axn.smil/manifest.mpd", i: "nSn4fv3sPJ+rNo9ySmKtDg", k: "bxwJwDXqs2Mj1g0UVNs9IA", l: "https://vnepg.site/logos/163.png" },
         { n: "CINEMAX HD", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/max.smil/manifest.mpd", i: "rLTCNHEGMyetxzLig8CEfw", k: "6YaPX0c9D9hpnt5I1THCsA", l: "https://vnepg.site/logos/130.png" },
@@ -53,9 +55,10 @@
         { n: "ABC AUSTRALIA HD", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/aplus.smil/manifest.mpd", i: "mgmnPsHcNIWE4vEw4n2mZw", k: "BvjRpv6v+9q5Kt80fntGnA", l: "https://vnepg.site/logos/153.png" }
     ];
 
+    const GITHUB_URL = "https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123";
+    let allChannels = [];
     let player, currentIdx = 0;
 
-    // HÀM CHUYỂN ĐỔI CHUẨN SANG BYTE ĐỂ GIẢI MÃ TUYỆT ĐỐI
     function toUint8Array(base64) {
         const binary = atob(base64.replace(/-/g, '+').replace(/_/g, '/'));
         return new Uint8Array(binary.length).map((_, i) => binary.charCodeAt(i));
@@ -64,45 +67,93 @@
     async function init() {
         shaka.polyfill.installAll();
         player = new shaka.Player(document.getElementById('video'));
-        
         player.getNetworkingEngine().registerRequestFilter((type, request) => {
-            request.headers['User-Agent'] = 'Dalvik/2.1.0 (Linux; U; Android 12; Pixel 6 Build/SD1A.210817.036)';
+            request.headers['User-Agent'] = 'Dalvik/2.1.0 (Linux; U; Android 12)';
         });
 
+        // Nạp nhóm VIP vào trước
+        VIP_CHANNELS.forEach(c => allChannels.push({...c, g: "QUỐC TẾ GIẢI MÃ VIP"}));
+        
+        // Nạp danh sách từ GitHub
+        await fetchGitHub();
         render();
         play(0);
     }
 
+    async function fetchGitHub() {
+        try {
+            const response = await fetch(GITHUB_URL);
+            const data = await response.text();
+            const lines = data.split('\n');
+            let currentChannel = null;
+
+            lines.forEach(line => {
+                line = line.trim();
+                if (line.startsWith('#EXTINF')) {
+                    const name = line.split(',')[1]?.trim();
+                    const group = line.match(/group-title="([^"]+)"/);
+                    const logo = line.match(/tvg-logo="([^"]+)"/);
+                    currentChannel = { 
+                        n: name, 
+                        g: group ? group[1] : "KÊNH GITHUB", 
+                        l: logo ? logo[1] : "" 
+                    };
+                } else if (line.startsWith('http') && currentChannel) {
+                    currentChannel.u = line;
+                    // Chỉ thêm nếu không trùng tên với danh sách VIP
+                    if (!VIP_CHANNELS.some(v => v.n === currentChannel.n)) {
+                        allChannels.push(currentChannel);
+                    }
+                    currentChannel = null;
+                }
+            });
+        } catch (e) { console.error("Lỗi nạp GitHub:", e); }
+    }
+
     function render() {
         const list = document.getElementById('list');
-        list.innerHTML = "";
-        CHANNELS.forEach((ch, idx) => {
-            const div = document.createElement('div');
-            div.className = 'item' + (currentIdx === idx ? ' active' : '');
-            div.innerHTML = `<img class="logo" src="${ch.l}"><span>${ch.n}</span>`;
-            div.onclick = () => play(idx);
-            list.appendChild(div);
+        list.innerHTML = ""; let lastGroup = "";
+        allChannels.forEach((ch, idx) => {
+            if (ch.g !== lastGroup) {
+                const gt = document.createElement('div'); gt.className = 'g-title';
+                gt.innerText = ch.g; list.appendChild(gt); lastGroup = ch.g;
+            }
+            const item = document.createElement('div');
+            item.className = 'item' + (currentIdx === idx ? ' active' : '');
+            item.innerHTML = `
+                <img class="logo" src="${ch.l}" onerror="this.src='https://via.placeholder.com/50x32/222/fff?text=TV'">
+                <span>${ch.n}</span>
+                ${ch.i ? '<span class="tag-vip">VIP</span>' : ''}
+            `;
+            item.onclick = () => play(idx);
+            list.appendChild(item);
         });
     }
 
     async function play(idx) {
         currentIdx = idx; render();
-        const ch = CHANNELS[idx];
+        const ch = allChannels[idx];
+        const video = document.getElementById('video');
+        await player.unload();
+
         try {
-            await player.unload();
-            // CẤU HÌNH GIẢI MÃ MẠNH NHẤT
-            const kid = toUint8Array(ch.i);
-            const key = toUint8Array(ch.k);
-            
-            player.configure({
-                drm: {
-                    clearKeys: { [shaka.util.Uint8ArrayUtils.toHex(kid)]: shaka.util.Uint8ArrayUtils.toHex(key) }
-                }
-            });
-            await player.load(ch.u);
-        } catch (e) { console.error("Lỗi:", e); }
+            if (ch.i) {
+                const kid = toUint8Array(ch.i);
+                const key = toUint8Array(ch.k);
+                player.configure({
+                    drm: { clearKeys: { [shaka.util.Uint8ArrayUtils.toHex(kid)]: shaka.util.Uint8ArrayUtils.toHex(key) } }
+                });
+                await player.load(ch.u);
+            } else {
+                // Link thường từ GitHub (nếu là .m3u8 hoặc .mpd không DRM)
+                player.configure({ drm: { clearKeys: {} } });
+                await player.load(ch.u);
+            }
+        } catch (e) { console.error("Lỗi phát:", e); }
     }
+
     init();
 </script>
 </body>
 </html>
+
