@@ -3,30 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Truyền Hình VIP Pro</title>
+    <title>Truyền Hình VIP Full Quốc Tế</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
         :root { --gold: #ffcc00; --bg: #000; --card: #111; }
         body { margin: 0; background: var(--bg); color: #fff; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         .navbar { background: #151515; padding: 12px; text-align: center; border-bottom: 2px solid var(--gold); color: var(--gold); font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
-        #video-container { width: 100%; max-width: 960px; margin: 0 auto; aspect-ratio: 16/9; background: #000; position: relative; }
-        video { width: 100%; height: 100%; outline: none; background: #000; }
+        #video-container { width: 100%; max-width: 960px; margin: 0 auto; aspect-ratio: 16/9; background: #000; }
+        video { width: 100%; height: 100%; outline: none; }
         .category-bar { display: flex; overflow-x: auto; gap: 8px; padding: 10px; background: #0a0a0a; border-bottom: 1px solid #222; scrollbar-width: none; }
         .tab-btn { padding: 8px 15px; background: #222; border: 1px solid #333; color: #888; cursor: pointer; border-radius: 4px; font-size: 11px; font-weight: bold; white-space: nowrap; transition: 0.3s; }
         .tab-btn.active { background: var(--gold); color: #000; border-color: var(--gold); }
         #channel-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; padding: 15px; overflow-y: auto; flex: 1; }
         .card { background: var(--card); border: 1px solid #222; border-radius: 6px; padding: 12px 5px; text-align: center; cursor: pointer; position: relative; transition: 0.2s; }
-        .card:hover { transform: translateY(-3px); border-color: #444; }
-        .card.active { border-color: var(--gold); background: #1a1700; }
+        .card.active { border-color: var(--gold); background: #1a1700; box-shadow: inset 0 0 10px rgba(255,204,0,0.2); }
         .card img { width: 100%; height: 40px; object-fit: contain; margin-bottom: 5px; }
         .card div { font-size: 11px; font-weight: 600; color: #ccc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .tag-vip { position: absolute; top: 4px; right: 4px; background: linear-gradient(135deg, var(--gold), #b8860b); color: #000; font-size: 8px; padding: 1px 4px; border-radius: 2px; font-weight: 900; box-shadow: 0 0 5px rgba(255,204,0,0.3); }
+        .tag-vip { position: absolute; top: 4px; right: 4px; background: linear-gradient(135deg, var(--gold), #b8860b); color: #000; font-size: 8px; padding: 1px 4px; border-radius: 2px; font-weight: 900; }
         @media (max-width: 600px) { #channel-grid { grid-template-columns: repeat(3, 1fr); } }
     </style>
 </head>
 <body>
 
-<div class="navbar">HỆ THỐNG TRUYỀN HÌNH VIP</div>
+<div class="navbar">HỆ THỐNG TRUYỀN HÌNH VIP PRO</div>
 <div id="video-container"><video id="video" autoplay controls playsinline></video></div>
 
 <div class="category-bar">
@@ -41,8 +41,9 @@
 
 <script>
     const GITHUB_URL = "https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123";
+    const video = document.getElementById('video');
     
-    // DANH SÁCH 21 KÊNH QUỐC TẾ VIP (DRM) CỐ ĐỊNH
+    // ĐẦY ĐỦ 21 KÊNH QUỐC TẾ VIP (DRM)
     const DRM_LIST = [
         { n: "HBO HD", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/hbo.smil/manifest.mpd", i: "Cd3+PWOGPK+ut50FRrCYqw", k: "PeDzjc8BSCff1b7Dh0PGog", l: "https://vnepg.site/logos/129.png", g: "QUỐC TẾ", isVip: true },
         { n: "AXN HD", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/axn.smil/manifest.mpd", i: "nSn4fv3sPJ+rNo9ySmKtDg", k: "bxwJwDXqs2Mj1g0UVNs9IA", l: "https://vnepg.site/logos/163.png", g: "QUỐC TẾ", isVip: true },
@@ -68,8 +69,7 @@
     ];
 
     let allChannels = [...DRM_LIST];
-    let currentFilter = 'ALL';
-    let player, activeIdx = 0;
+    let currentFilter = 'ALL', activeIdx = 0, shakaPlayer, hlsPlayer;
 
     function base64ToHex(b64) {
         const bin = atob(b64);
@@ -83,21 +83,12 @@
 
     async function init() {
         shaka.polyfill.installAll();
-        player = new shaka.Player(document.getElementById('video'));
-
-        // CẤU HÌNH TỐI ƯU TỐC ĐỘ ĐỌC (SPEED OPTIMIZATION)
-        player.configure({
-            streaming: {
-                bufferingGoal: 8, 
-                rebufferingGoal: 2,
-                lowLatencyMode: true,
-                bufferBehind: 10
-            }
-        });
-
+        shakaPlayer = new shaka.Player(video);
+        shakaPlayer.configure({ streaming: { lowLatencyMode: true, bufferingGoal: 10 } });
+        
         await loadFromGithub();
         renderGrid();
-        if(allChannels.length > 0) play(0);
+        play(0);
     }
 
     async function loadFromGithub() {
@@ -106,31 +97,26 @@
             const text = await res.text();
             const lines = text.split('\n');
             let cur = null;
-
             lines.forEach(line => {
                 if (line.startsWith('#EXTINF')) {
                     const name = line.split(',')[1]?.trim();
                     let logo = line.match(/tvg-logo="([^"]+)"/)?.[1] || "";
                     const nU = name.toUpperCase();
-                    let group = "ĐỊA PHƯƠNG", isVip = false;
-
-                    // Nhận diện KIX và ép logo/nhóm/VIP
-                    if (nU.includes("KIX")) {
-                        logo = "https://vnepg.site/logos/167.png";
-                        group = "QUỐC TẾ"; isVip = true;
-                    } 
-                    else if (nU.includes("SCTV")) { group = "SCTV"; isVip = true; }
+                    
+                    // Xử lý logo KIX và VIP
+                    if (nU.includes("KIX")) logo = "https://vnepg.site/logos/167.png";
+                    
+                    let g = "ĐỊA PHƯƠNG", vip = false;
+                    if (nU.includes("SCTV")) { g = "SCTV"; vip = true; }
                     else if (nU.includes("VTV")) {
-                        group = "VTV";
-                        isVip = !(nU === "VTV1" || nU.includes("VTV1 HD") || nU.includes("AN NINH") || nU.includes("QUỐC PHÒNG") || nU.includes("TODAY"));
-                    }
+                        g = "VTV";
+                        vip = !(nU.includes("VTV1") || nU.includes("AN NINH") || nU.includes("QUỐC PHÒNG") || nU.includes("TODAY"));
+                    } else if (nU.includes("KIX")) { g = "QUỐC TẾ"; vip = true; }
 
-                    cur = { n: name, l: logo, u: "", g: group, isVip: isVip };
+                    cur = { n: name, l: logo, u: "", g: g, isVip: vip };
                 } else if (line.startsWith('http') && cur) {
                     cur.u = line.trim();
-                    // LỌC TRÙNG: Chỉ lấy nếu chưa có trong danh sách Quốc tế
-                    const base = cur.n.split(' ')[0].toUpperCase();
-                    const exists = allChannels.some(c => c.n.toUpperCase().includes(base));
+                    const exists = allChannels.some(c => c.n.toUpperCase().includes(cur.n.split(' ')[0].toUpperCase()));
                     if (!exists) allChannels.push(cur);
                     cur = null;
                 }
@@ -145,32 +131,34 @@
             if (currentFilter !== 'ALL' && !ch.g.includes(currentFilter)) return;
             const div = document.createElement('div');
             div.className = 'card' + (activeIdx === idx ? ' active' : '');
-            const vipTag = ch.isVip ? '<div class="tag-vip">VIP</div>' : '';
-            div.innerHTML = `${vipTag}<img src="${ch.l}" onerror="this.src='https://via.placeholder.com/100x40/222/555?text=TV'"><div>${ch.n}</div>`;
+            div.innerHTML = `${ch.isVip ? '<div class="tag-vip">VIP</div>' : ''}<img src="${ch.l}" onerror="this.src='https://via.placeholder.com/100x40/222/555?text=TV'"><div>${ch.n}</div>`;
             div.onclick = () => play(idx);
             grid.appendChild(div);
         });
     }
 
-    function filter(g) {
-        currentFilter = g;
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.innerText.includes(g) || (g==='ALL' && b.innerText==='TẤT CẢ')));
-        renderGrid();
-    }
-
     async function play(idx) {
         activeIdx = idx; renderGrid();
         const ch = allChannels[idx];
-        await player.unload();
-        try {
-            if (ch.i) {
-                player.configure({ drm: { clearKeys: { [base64ToHex(ch.i)]: base64ToHex(ch.k) } } });
-            } else {
-                player.configure({ drm: { clearKeys: {} } });
+        if (hlsPlayer) { hlsPlayer.destroy(); hlsPlayer = null; }
+        await shakaPlayer.unload();
+        video.src = ""; // Clear src cũ
+
+        if (ch.i) { // Kênh có DRM
+            shakaPlayer.configure({ drm: { clearKeys: { [base64ToHex(ch.i)]: base64ToHex(ch.k) } } });
+            await shakaPlayer.load(ch.u);
+        } else { // Kênh thường (.m3u8)
+            if (Hls.isSupported()) {
+                hlsPlayer = new Hls({ capLevelToPlayerSize: true, lowLatencyMode: true });
+                hlsPlayer.loadSource(ch.u);
+                hlsPlayer.attachMedia(video);
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = ch.u;
             }
-            await player.load(ch.u);
-        } catch (e) { console.log("Lỗi tải kênh"); }
+        }
     }
+
+    function filter(g) { currentFilter = g; renderGrid(); }
     init();
 </script>
 </body>
