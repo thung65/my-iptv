@@ -3,96 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Truyền Hình Quốc Tế VIP</title>
+    <title>IPTV VIP - CẬP NHẬT MỚI NHẤT</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
     <style>
-        :root { --accent: #ffcc00; --bg: #0a0a0a; }
-        body { margin: 0; background: var(--bg); color: #fff; font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; }
-        #player-container { width: 100%; max-width: 960px; margin: 0 auto; background: #000; aspect-ratio: 16/9; border-bottom: 2px solid var(--accent); }
-        video { width: 100%; height: 100%; display: block; }
-        .channel-list { flex: 1; padding: 15px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
-        .channel-item { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 10px; text-align: center; cursor: pointer; transition: 0.2s; }
-        .channel-item:hover { border-color: var(--accent); background: #222; }
-        .channel-item.active { border-color: var(--accent); background: #2a2a00; }
-        .channel-item img { width: 100%; height: 40px; object-fit: contain; margin-bottom: 8px; }
-        .channel-item div { font-size: 11px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .header { padding: 10px; text-align: center; background: #111; color: var(--accent); font-weight: bold; text-transform: uppercase; }
+        :root { --main: #00ffcc; --bg: #050505; }
+        body { margin: 0; background: var(--bg); color: #fff; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; height: 100vh; }
+        #player-box { width: 100%; max-width: 960px; margin: 0 auto; background: #000; aspect-ratio: 16/9; border-bottom: 2px solid var(--main); }
+        video { width: 100%; height: 100%; }
+        .list { flex: 1; padding: 15px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
+        .item { background: #111; border: 1px solid #222; border-radius: 8px; padding: 10px; text-align: center; cursor: pointer; transition: 0.3s; }
+        .item:hover { border-color: var(--main); transform: scale(1.02); }
+        .item.active { border-color: var(--main); background: #001a14; }
+        .item img { width: 100%; height: 40px; object-fit: contain; margin-bottom: 8px; }
+        .item div { font-size: 11px; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     </style>
 </head>
 <body>
 
-<div class="header" id="now-playing">Đang phát: DISCOVERY HD</div>
-
-<div id="player-container">
-    <video id="video" autoplay controls playsinline></video>
-</div>
-
-<div class="channel-list" id="grid"></div>
+<div id="player-box"><video id="video" autoplay controls playsinline></video></div>
+<div class="list" id="grid"></div>
 
 <script>
-    // Dữ liệu mã Hex được trích xuất chính xác từ hình ảnh danh sách của bạn
-    const VIP_CHANNELS = [
-        { n: "DISCOVERY HD", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/dsc.smil/manifest.mpd", i: "eb4160ea553a321d899553e4e796fec2", k: "bea5a07157e0c4d17b11ab399517f952", l: "https://vnepg.site/logos/144.png" },
-        { n: "HBO HD", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/hbo.smil/manifest.mpd", i: "09ddfe3d63863cafaeb79d3546b098ab", k: "3de0f38cf014827dfd5bec39743c6a2e", l: "https://vnepg.site/logos/129.png" },
-        { n: "AXN HD", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/axn.smil/manifest.mpd", i: "9d29f87efdec3c9fab368f724e62ad0e", k: "4f1c09c035eab36323d60d1454d3b20d", l: "https://vnepg.site/logos/163.png" },
-        { n: "CARTOONITO", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/boomerang.smil/manifest.mpd", i: "b1f0d759e914369db3b8b30c81597156", k: "78d317e17037a8b89d539e452e5b1212", l: "https://vnepg.site/logos/138.png" },
-        { n: "CINEMAX HD", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/max.smil/manifest.mpd", i: "acb4c23471063327adc732e283c0847f", k: "e9868f51473d0fd859ede4de48d531c2", l: "https://vnepg.site/logos/130.png" },
-        { n: "ANIMAL PLANET", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/ap.smil/manifest.mpd", i: "ec6f472c7125377a9bc0ae61598095f4", k: "1d5388e078141debce364535b5d61d75", l: "https://vnepg.site/logos/143.png" },
-        { n: "WARNER TV", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/wtv.smil/manifest.mpd", i: "086d09a40bff3a00aa6ddddbafbc13b2", k: "34f1908cfade05ee060116d40312cb24", l: "https://vnepg.site/logos/169.png" },
-        { n: "BBC NEWS", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/bbcworldnews.smil/manifest.mpd", i: "c7ba46086dda345a92e29bf155e459c", k: "d374b8f39904bf572689ea347ae86591", l: "https://vnepg.site/logos/151.png" }
+    // Dữ liệu trích xuất chính xác từ danh sách bạn vừa gửi
+    const CHANNELS = [
+        { n: "HBO", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/hbo.smil/manifest.mpd", i: "09ddfe3d63863cafaeb79d0546b098ab", k: "3de0f38dcf014827dfd5bec38743c6a2" },
+        { n: "AXN", u: "https://s7771.cdn.mytvnet.vn/pkg20/live_dzones/axn.smil/manifest.mpd", i: "9d29f87efdec3c9fab368f724e62ad0e", k: "6f1c09c035eab36323d60d1454db3d20" },
+        { n: "CINEMAX", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/max.smil/manifest.mpd", i: "acb4c23471063327adc732e283c0847f", k: "e9868f5f473d0fd859ede48d531c2b0" },
+        { n: "CINEMAWORLD", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/cinemaworld.smil/manifest.mpd", i: "ee7915564d7439d09bd3556ffccc87a4", k: "b35e12a75a42e6f9184723a90ff42d9c" },
+        { n: "ANIMAL PLANET", u: "https://freem3u.xyz/api/live/play.mpd?fl=096fde45d23058e1cb7e560726804c3993db6e38ae0a0e2fa8859d3d72464dd59bc766cacc6d3d9f7abc7a5b377b277c8e416091686e87cb210fef21919640f524ed2c2dd1ce", i: "ec6f072c7125377a9bc0ae61598095f4", k: "1d5388e0781415ebcec9914f5ad75875" },
+        { n: "DREAMWORKS", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/dreamwork.smil/manifest.mpd", i: "67dae20527c63dadaaae609aa91577cb", k: "59328f621d56767bc5ff9404a8940683" },
+        { n: "CARTOONITO", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/boomerang.smil/manifest.mpd", i: "b1f0d759e914369db388b3b0dc815971", k: "5678d317e17007a88a9b9539e4526512" },
+        { n: "BBC CBEEBIES", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/cbb.smil/manifest.mpd", i: "cca73a006b4b39a595207ceb5ed9ca0a", k: "b833d14f0c261ef78896f97e06f80cdc" },
+        { n: "WARNER TV", u: "https://s7771.cdn.mytvnet.vn/pkg20/live_dzones/wtv.smil/manifest.mpd", i: "086d09a40bff3a00aa6dd4dbaf9c13b2", k: "34f1908cfe2e05ee060046d40f14aec9" },
+        { n: "DMAX", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/dmax.smil/manifest.mpd", i: "53b26f904ae03a20b56477cfb9c5dca2", k: "0c64ccfb978e7390bd33344075492aec" },
+        { n: "CARTOON NETWORK", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/cn.smil/manifest.mpd", i: "3c20166660a93a75ac77db81567389f7", k: "3cc1add43aecce3fe31c9c6a2a5b8c21" },
+        { n: "DISCOVERY ASIA", u: "https://freem3u.xyz/api/live/play.mpd?fl=096fde45d23058e1cb7e560726804c3993db6e38ae0a0e2fa8859d3d72464dd59bc766cacc6d3d9f7abc7a5b377b277c8e416592257c99cb2c0ef12d969309fdf9dcd9c14f9b1d1c87891c", i: "934907b134be3963a6263a453846924c", k: "788e2835fb98568aed2f47bbdc091515" },
+        { n: "TLC", u: "https://s129135.cdn.mytvnet.vn/pkg20/live_dzones/tlc.smil/manifest.mpd", i: "b6908629732639ada4814a6208296d9c", k: "7ca9bf03623f77b5e2f16df0b53f274d" },
+        { n: "FASHION TV", u: "https://freem3u.xyz/api/live/play.mpd?fl=096fde45d23058e1cb7e560726804c3993db6e38ae0a0e2fa8859d3d72464dd59bc766cacc6d3d9f7abc7a5b377b277c8e416795303399cf244cad2d9e914ff6daad2e663e968c", i: "c1d9f25701023508bfa6737e3a8c7001", k: "30c3613e9b06e0f7cc201014f31bf5d8" },
+        { n: "ABC AUSTRALIA", u: "https://s935.cdn.mytvnet.vn/pkg20/live_dzones/aplus.smil/manifest.mpd", i: "9a09a73ec1dc348584e2f130e27da667", k: "06f8d1a6feaffbdab92edf347e7b469c" },
+        { n: "BLOOMBERG", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/bloomberg.smil/manifest.mpd", i: "1071393f8fc237f3a9a28028142110f7", k: "7a0f8c3c72e0ffff811d534c929c57c2" },
+        { n: "BBC LIFESTYLE", u: "https://s7770.cdn.mytvnet.vn/pkg20/live_dzones/bbclifestyle.smil/manifest.mpd", i: "58b949986ed13294bc01b0f330abc527", k: "23e8c5f2fe202906ac2d6554d9527299" },
+        { n: "BBC NEWS", u: "https://freem3u.xyz/api/live/play.mpd?fl=096fde45d23058e1cb7b50022e9f1c6940d850580b7ed4182e886023d18c23432c6df618544e3b3955afa4fd641ac06ce15ceaf64934f430a5cabde478ae6cb1e186fd7913f82920a5f606bb10", i: "c7ba46086dda345a929e29bf155e459c", k: "d374b8f39904bf572689ea347ae86591" },
+        { n: "BBC EARTH", u: "https://s7771.cdn.mytvnet.vn/pkg20/live_dzones/bbcearth.smil/manifest.mpd", i: "5014941a2c42379880b5edf72304c165", k: "f3fa0fe3cd39a52f4eefd36ff7161e89" }
     ];
 
-    let shakaPlayer;
+    let player;
 
-    async function initPlayer() {
-        const video = document.getElementById('video');
-        shakaPlayer = new shaka.Player(video);
-
-        // Lắng nghe lỗi để debug nếu cần
-        shakaPlayer.addEventListener('error', (event) => console.error('Error code', event.detail.code, 'object', event.detail));
-
-        // Tạo danh sách kênh trên giao diện
+    async function init() {
+        player = new shaka.Player(document.getElementById('video'));
         const grid = document.getElementById('grid');
-        VIP_CHANNELS.forEach((ch, idx) => {
-            const item = document.createElement('div');
-            item.className = 'channel-item';
-            item.innerHTML = `<img src="${ch.l}"><div>${ch.n}</div>`;
-            item.onclick = () => loadChannel(idx);
-            grid.appendChild(item);
+        
+        CHANNELS.forEach((ch, idx) => {
+            const div = document.createElement('div');
+            div.className = 'item';
+            div.innerHTML = `<div>${ch.n}</div>`;
+            div.onclick = () => play(idx);
+            grid.appendChild(div);
         });
-
-        // Tự động phát kênh đầu tiên
-        loadChannel(0);
+        
+        if (CHANNELS.length > 0) play(0);
     }
 
-    async function loadChannel(index) {
-        const ch = VIP_CHANNELS[index];
-        document.getElementById('now-playing').innerText = "Đang phát: " + ch.n;
+    async function play(idx) {
+        const ch = CHANNELS[idx];
+        document.querySelectorAll('.item').forEach((el, i) => el.classList.toggle('active', i === idx));
         
-        // Cập nhật trạng thái active trên danh sách
-        document.querySelectorAll('.channel-item').forEach((el, i) => {
-            el.classList.toggle('active', i === index);
-        });
-
-        // Cấu hình trình giải mã ClearKey (DRM)
-        shakaPlayer.configure({
-            drm: {
-                clearKeys: {
-                    [ch.i]: ch.k
-                }
-            }
+        player.configure({
+            drm: { clearKeys: { [ch.i]: ch.k } }
         });
 
         try {
-            await shakaPlayer.load(ch.u);
-            console.log('Kênh đã tải thành công!');
+            await player.load(ch.u);
         } catch (e) {
-            console.error('Lỗi tải kênh:', e);
+            console.error("Lỗi:", e);
         }
     }
 
-    document.addEventListener('DOMContentLoaded', initPlayer);
+    document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
 </html>
-
