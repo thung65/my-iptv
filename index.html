@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TV VIP - FULL VERSION 2025</title>
+    <title>TV VIP - FIX M3U8</title>
     <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mux.js/6.0.1/mux.min.js"></script>
@@ -12,19 +12,15 @@
     <style>
         :root { --gold: #ffcc00; --bg: #000; --card: #151515; }
         body { margin: 0; background: var(--bg); color: #fff; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-        
         #video-box { width: 100%; max-width: 960px; margin: 0 auto; background: #000; aspect-ratio: 16/9; position: sticky; top: 0; z-index: 99; border-bottom: 2px solid var(--gold); }
         video { width: 100%; height: 100%; outline: none; }
-
         .tabs { display: flex; overflow-x: auto; background: #111; padding: 10px; gap: 8px; border-bottom: 1px solid #222; scrollbar-width: none; }
         .tabs::-webkit-scrollbar { display: none; }
         .tabs button { padding: 8px 16px; border: none; border-radius: 4px; background: #222; color: #888; white-space: nowrap; font-size: 11px; font-weight: bold; cursor: pointer; text-transform: uppercase; transition: 0.3s; }
         .tabs button.active { background: var(--gold); color: #000; }
-
         #list { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; padding: 15px; overflow-y: auto; flex: 1; align-content: start; }
-        .item { background: var(--card); border-radius: 8px; padding: 12px 5px; text-align: center; cursor: pointer; border: 1px solid #222; transition: 0.2s; height: fit-content; }
+        .item { background: var(--card); border-radius: 8px; padding: 12px 5px; text-align: center; cursor: pointer; border: 1px solid #222; transition: 0.2s; }
         .item.active { border-color: var(--gold); background: #221f00; border-bottom: 4px solid var(--gold); }
-        
         .img-wrap { width: 100%; height: 45px; display: flex; align-items: center; justify-content: center; margin-bottom: 5px; overflow: hidden; }
         .item img { max-width: 85%; max-height: 100%; object-fit: contain; }
         .item span { font-size: 10px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: bold; color: #ccc; text-transform: uppercase; }
@@ -90,7 +86,6 @@
         { n: "FASHION TV", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/ftv.smil/manifest.mpd", i: "wdnyVwECNQi/pnN+OoxwAQ", k: "MMNhPpsG4PfMIBAU8xv12A", l: "https://vnepg.site/logos/165.png", g: "QUỐC TẾ" }
     ];
 
-
     function toHex(b64) {
         try {
             const bin = atob(b64.replace(/-/g, '+').replace(/_/g, '/'));
@@ -104,9 +99,15 @@
         video = document.getElementById('video');
         shaka.polyfill.installAll();
         player = new shaka.Player(video);
+        
+        player.addEventListener('error', (event) => {
+            console.error('Shaka Error:', event.detail);
+        });
+
         player.getNetworkingEngine().registerRequestFilter((type, request) => {
             request.headers['User-Agent'] = 'Dalvik/2.1.0 (Linux; U; Android 11)';
         });
+
         await loadData();
         renderList();
         if(allData.length > 0) playChannel(0);
@@ -127,27 +128,44 @@
                     let g = "ĐỊA PHƯƠNG";
                     if (nU.includes("VTVCAB") || nU.includes("ON ")) g = "VTVCAB";
                     else if (nU.includes("SCTV")) g = "SCTV";
-                    else if (nU.includes("HTV") || nU.includes("HTVC")) g = "HTV";
+                    else if (nU.includes("HTV")) g = "HTV";
                     else if (nU.includes("VTV")) g = "VTV";
-                    else if (nU.includes("HBO") || nU.includes("AXN") || nU.includes("MAX") || nU.includes("DISCOVERY")) g = "QUỐC TẾ";
+                    else if (nU.includes("HBO") || nU.includes("AXN") || nU.includes("MAX")) g = "QUỐC TẾ";
                     cur = { n: name, u: "", l: logoMatch ? logoMatch[1] : "", g: g };
                 } else if (line.startsWith('http') && cur) {
                     cur.u = line; externalChannels.push(cur); cur = null;
                 }
             });
-        } catch(e) { console.error("Lỗi tải GitHub:", e); }
-        // Gộp dữ liệu và xóa trùng lặp
+        } catch(e) { console.error("Lỗi tải:", e); }
         allData = [...FIXED_CHANNELS, ...externalChannels].filter((v, i, a) => a.findIndex(t => t.u === v.u) === i);
     }
 
     async function playChannel(idx) {
         curIdx = idx; renderList();
         const ch = allData[idx];
+        
+        // Reset player trước khi phát kênh mới
+        await player.unload();
+        video.src = "";
+
         let drmConfig = {};
-        if (ch.i && ch.k) drmConfig[toHex(ch.i)] = toHex(ch.k);
-        player.configure({ drm: { clearKeys: drmConfig } });
-        try { await player.load(ch.u); video.play(); } 
-        catch (e) { video.src = ch.u; video.play(); }
+        if (ch.i && ch.k) {
+            drmConfig[toHex(ch.i)] = toHex(ch.k);
+            player.configure({ drm: { clearKeys: drmConfig } });
+        } else {
+            player.configure({ drm: { clearKeys: {} } });
+        }
+
+        try {
+            // Thử phát bằng Shaka Player (DASH/HLS)
+            await player.load(ch.u);
+            video.play();
+        } catch (e) {
+            // Nếu Shaka lỗi (thường gặp với m3u8 đơn giản), dùng thẻ video mặc định
+            console.log("Chuyển sang phát trực tiếp thẻ video cho m3u8");
+            video.src = ch.u;
+            video.play();
+        }
     }
 
     function renderList() {
@@ -157,10 +175,7 @@
             if (curTab !== 'ALL' && ch.g !== curTab) return;
             const div = document.createElement('div');
             div.className = `item ${curIdx === i ? 'active' : ''}`;
-            
-            // HIỂN THỊ TÊN NGUYÊN GỐC (GIỮ CHỮ HD)
-            const displayName = ch.n; 
-
+            const displayName = ch.n; // GIỮ NGUYÊN HD
             div.innerHTML = `<div class="img-wrap"><img src="${ch.l}" referrerpolicy="no-referrer" onerror="this.src='https://via.placeholder.com/100x45/222/555?text=TV'"></div><span>${displayName}</span>`;
             div.onclick = () => playChannel(i);
             box.appendChild(div);
