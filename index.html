@@ -110,7 +110,8 @@
                     if (nU.includes("VTVCAB") || nU.includes("ON ")) { g = "VTVCAB"; vip = true; }
                     else if (nU.includes("SCTV")) { g = "SCTV"; vip = true; }
                     else if (nU.includes("HTV")) { g = "HTV"; vip = nU.includes("HTVC"); }
-                    else if (nU.includes("VTV")) { g = "VTV"; vip = !["VTV1","VTV2","VTV3"].some(k => nU === k); }
+                    else if (nU.includes("VTV")) { g = "VTV"; vip = !["VTV1"].some(k => nU === k); }
+                                                                                          
                     cur = { n: name, u: "", l: logo, g: g, v: vip };
                 } else if (line.startsWith('http') && cur) {
                     cur.u = line.trim(); vnChannels.push(cur); cur = null;
