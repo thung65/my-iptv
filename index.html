@@ -156,7 +156,6 @@
             if (curTab !== 'ALL' && ch.g !== curTab) return;
             const div = document.createElement('div');
             div.className = `item ${curIdx === i ? 'active' : ''}`;
-            const displayName = ch.n.replace(/HD|VTVCAB|SCTV/gi, "").trim();
             div.innerHTML = `<div class="img-wrap"><img src="${ch.l}" onerror="this.src='https://via.placeholder.com/100x45/222/555?text=TV'"></div><span>${displayName}</span>`;
             div.onclick = () => playChannel(i);
             box.appendChild(div);
