@@ -3,25 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Truyền Hình VIP Pro Max</title>
+    <title>Truyền Hình VIP Pro Max - Full Quốc Tế</title>
+    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
     <link href="https://vjs.zencdn.net/8.3.0/video-js.css" rel="stylesheet" />
     <script src="https://vjs.zencdn.net/8.3.0/video.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/videojs-contrib-eme@5.0.1/dist/videojs-contrib-eme.min.js"></script>
     <style>
-        :root { --gold: #ffcc00; --bg: #000; --card: #111; }
-        body { margin: 0; background: var(--bg); color: #fff; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        .navbar { background: #151515; padding: 12px; text-align: center; border-bottom: 2px solid var(--gold); color: var(--gold); font-weight: bold; text-transform: uppercase; }
+        :root { --gold: #ffcc00; --bg: #0a0a0a; --card: #161616; }
+        body { margin: 0; background: var(--bg); color: #fff; font-family: 'Segoe UI', Tahoma, sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        .navbar { background: #111; padding: 15px; text-align: center; border-bottom: 2px solid var(--gold); color: var(--gold); font-weight: bold; text-transform: uppercase; letter-spacing: 2px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
         #video-container { width: 100%; max-width: 960px; margin: 0 auto; background: #000; }
         .video-js { width: 100%; aspect-ratio: 16/9; }
-        .category-bar { display: flex; overflow-x: auto; gap: 8px; padding: 10px; background: #0a0a0a; border-bottom: 1px solid #222; scrollbar-width: none; }
-        .tab-btn { padding: 8px 15px; background: #222; border: 1px solid #333; color: #888; cursor: pointer; border-radius: 4px; font-size: 11px; font-weight: bold; white-space: nowrap; transition: 0.2s; }
-        .tab-btn.active { background: var(--gold); color: #000; border-color: var(--gold); }
-        #channel-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; padding: 15px; overflow-y: auto; flex: 1; }
-        .card { background: var(--card); border: 1px solid #222; border-radius: 6px; padding: 12px 5px; text-align: center; cursor: pointer; position: relative; transition: 0.2s; border-bottom: 3px solid transparent; }
-        .card.active { border-color: var(--gold); background: #1a1700; border-bottom: 3px solid var(--gold); }
-        .card img { width: 100%; height: 40px; object-fit: contain; margin-bottom: 5px; }
-        .card div { font-size: 11px; font-weight: 600; color: #ccc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .tag-vip { position: absolute; top: 4px; right: 4px; background: linear-gradient(to right, #ffcc00, #ff9900); color: #000; font-size: 8px; padding: 1px 4px; border-radius: 2px; font-weight: 900; }
+        .category-bar { display: flex; overflow-x: auto; gap: 10px; padding: 12px; background: #050505; border-bottom: 1px solid #222; scrollbar-width: none; }
+        .tab-btn { padding: 8px 20px; background: #1a1a1a; border: 1px solid #333; color: #999; cursor: pointer; border-radius: 20px; font-size: 12px; font-weight: bold; white-space: nowrap; transition: 0.3s; }
+        .tab-btn.active { background: var(--gold); color: #000; border-color: var(--gold); box-shadow: 0 0 10px rgba(255, 204, 0, 0.4); }
+        #channel-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(115px, 1fr)); gap: 12px; padding: 15px; overflow-y: auto; flex: 1; }
+        .card { background: var(--card); border: 1px solid #222; border-radius: 8px; padding: 12px 5px; text-align: center; cursor: pointer; position: relative; transition: 0.2s; }
+        .card.active { border-color: var(--gold); background: #221f00; transform: translateY(-3px); }
+        .card img { width: 100%; height: 42px; object-fit: contain; margin-bottom: 8px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); }
+        .card div { font-size: 11px; font-weight: 600; color: #ddd; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .tag-vip { position: absolute; top: 5px; right: 5px; background: linear-gradient(135deg, #ffcc00, #ff9500); color: #000; font-size: 8px; padding: 2px 5px; border-radius: 3px; font-weight: 900; }
     </style>
 </head>
 <body>
@@ -32,12 +33,12 @@
 </div>
 
 <div class="category-bar">
-    <button class="tab-btn active" onclick="filter('ALL')">TẤT CẢ</button>
-    <button class="tab-btn" onclick="filter('QUỐC TẾ')">QUỐC TẾ VIP</button>
-    <button class="tab-btn" onclick="filter('VTV')">VTV</button>
-    <button class="tab-btn" onclick="filter('HTV')">HTV / HTVC</button>
-    <button class="tab-btn" onclick="filter('SCTV')">SCTV VIP</button>
-    <button class="tab-btn" onclick="filter('ĐỊA PHƯƠNG')">ĐỊA PHƯƠNG</button>
+    <button class="tab-btn active" onclick="filter('ALL', this)">TẤT CẢ</button>
+    <button class="tab-btn" onclick="filter('QUỐC TẾ', this)">QUỐC TẾ VIP</button>
+    <button class="tab-btn" onclick="filter('VTV', this)">VTV / THIẾT YẾU</button>
+    <button class="tab-btn" onclick="filter('HTV', this)">HTV / HTVC</button>
+    <button class="tab-btn" onclick="filter('SCTV', this)">SCTV VIP</button>
+    <button class="tab-btn" onclick="filter('ĐỊA PHƯƠNG', this)">ĐỊA PHƯƠNG</button>
 </div>
 
 <div id="channel-grid"></div>
@@ -46,8 +47,15 @@
     const GITHUB_URL = "https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123";
     let player;
     
-    // DANH SÁCH 21 KÊNH QUỐC TẾ VIP ĐẦY ĐỦ
-    const DRM_LIST = [
+    // TỪ KHÓA ĐỂ NHẬN DIỆN KÊNH QUỐC TẾ TỪ GITHUB
+    const INT_KEYWORDS = ["HBO", "AXN", "DISCOVERY", "CINEMA", "FOX", "DISNEY", "CARTOON", "BBC", "CNN", "WARNER", "FASHION", "HOLLYWOOD", "ANIMAL", "TLC", "BLOOMBERG", "DMAX", "KIX", "WOMAN", "MGM", "RED BY", "BOX MOVIE", "HAPPY KIDS", "MUSIC BOX"];
+
+    // DANH SÁCH 21 KÊNH QUỐC TẾ VIP + 3 KÊNH MỚI CỦA BẠN
+    const FIXED_CHANNELS = [
+        { n: "Hollywood Classic HD", u: "http://toiyeuvietnam.dpdns.org/CoBan/hollywood-classic-hd/TuyetDoiKhongKinhDoanh.m3u8", l: "https://vnepg.site/logos/130.png", g: "QUỐC TẾ", isVip: true },
+        { n: "Woman HD", u: "http://toiyeuvietnam.dpdns.org/CoBan/woman-hd/TuyetDoiKhongKinhDoanh.m3u8", l: "https://via.placeholder.com/100x40/222/555?text=Woman", g: "QUỐC TẾ", isVip: true },
+        { n: "HiTV", u: "http://toiyeuvietnam.dpdns.org/CoBan/hitv/TuyetDoiKhongKinhDoanh.m3u8", l: "https://via.placeholder.com/100x40/222/555?text=HiTV", g: "VTV", isVip: false },
+        
         { n: "HBO HD", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/hbo.smil/manifest.mpd", i: "Cd3+PWOGPK+ut50FRrCYqw", k: "PeDzjc8BSCff1b7Dh0PGog", l: "https://vnepg.site/logos/129.png", g: "QUỐC TẾ", isVip: true },
         { n: "AXN HD", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/axn.smil/manifest.mpd", i: "nSn4fv3sPJ+rNo9ySmKtDg", k: "bxwJwDXqs2Mj1g0UVNs9IA", l: "https://vnepg.site/logos/163.png", g: "QUỐC TẾ", isVip: true },
         { n: "CINEMAX HD", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/max.smil/manifest.mpd", i: "rLTCNHEGMyetxzLig8CEfw", k: "6YaPX0c9D9hpnt5I1THCsA", l: "https://vnepg.site/logos/130.png", g: "QUỐC TẾ", isVip: true },
@@ -71,11 +79,10 @@
         { n: "ABC AUSTRALIA", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/aplus.smil/manifest.mpd", i: "mgmnPsHcNIWE4vEw4n2mZw", k: "BvjRpv6v+9q5Kt80fntGnA", l: "https://vnepg.site/logos/153.png", g: "QUỐC TẾ", isVip: true }
     ];
 
-    let allChannels = [...DRM_LIST], currentFilter = 'ALL', activeIdx = 0;
+    let allChannels = [...FIXED_CHANNELS], currentFilter = 'ALL', activeIdx = 0;
 
     function base64ToHex(b64) {
-        const bin = atob(b64);
-        let res = "";
+        const bin = atob(b64); let res = "";
         for (let i = 0; i < bin.length; i++) {
             let hex = bin.charCodeAt(i).toString(16);
             res += (hex.length === 1 ? '0' : '') + hex;
@@ -84,12 +91,7 @@
     }
 
     async function init() {
-        player = videojs('main-player', { 
-            autoplay: true, 
-            muted: false, 
-            fluid: true,
-            html5: { vhs: { overrideNative: true }, nativeAudioTracks: false, nativeVideoTracks: false }
-        });
+        player = videojs('main-player', { autoplay: true, fluid: true, html5: { vhs: { overrideNative: true } } });
         player.eme();
         await loadFromGithub();
         renderGrid();
@@ -100,39 +102,28 @@
         try {
             const res = await fetch(GITHUB_URL);
             const text = await res.text();
-            const lines = text.split('\n');
             let cur = null;
-            lines.forEach(line => {
+            text.split('\n').forEach(line => {
                 if (line.startsWith('#EXTINF')) {
                     const name = line.split(',')[1]?.trim();
-                    let logo = line.match(/tvg-logo="([^"]+)"/)?.[1] || "";
                     const nU = name.toUpperCase();
-                    
                     let g = "ĐỊA PHƯƠNG", vip = false;
 
-                    // Phân loại logic
-                    if (nU.includes("KIX")) { logo = "https://vnepg.site/logos/167.png"; g = "QUỐC TẾ"; vip = true; }
+                    const isInt = INT_KEYWORDS.some(k => nU.includes(k));
+
+                    if (isInt) { g = "QUỐC TẾ"; vip = true; }
                     else if (nU.includes("SCTV")) { g = "SCTV"; vip = true; }
-                    else if (nU.includes("HTV")) {
-                        g = "HTV";
-                        // HTVC trả phí là VIP, HTV thường (7, 9, Thể thao) là thiết yếu
-                        vip = nU.includes("HTVC");
-                    }
-                    else if (nU.includes("VTV")) {
+                    else if (nU.includes("HTV")) { g = "HTV"; vip = nU.includes("HTVC"); }
+                    else if (nU.includes("VTV") || nU.includes("AN NINH") || nU.includes("QUỐC PHÒNG") || nU.includes("QPVN") || nU.includes("ANTV")) {
                         g = "VTV";
-                        const thietYeu = ["VTV1", "AN NINH", "QUỐC PHÒNG", "QPVN", "ANTV", "TODAY"];
+                        const thietYeu = ["VTV1", "AN NINH", "QUỐC PHÒNG", "QPVN", "ANTV", "HTV7", "HTV9", "TODAY"];
                         vip = !thietYeu.some(k => nU.includes(k));
                     }
-                    else if (nU.includes("AN NINH") || nU.includes("QUỐC PHÒNG") || nU.includes("QPVN") || nU.includes("ANTV")) {
-                        g = "VTV"; // Gom vào nhóm kênh thiết yếu
-                        vip = false;
-                    }
 
-                    cur = { n: name, l: logo, u: "", g: g, isVip: vip };
+                    cur = { n: name, l: line.match(/tvg-logo="([^"]+)"/)?.[1] || "", u: "", g: g, isVip: vip };
                 } else if (line.startsWith('http') && cur) {
                     cur.u = line.trim();
-                    const exists = allChannels.some(c => c.n.toUpperCase() === cur.n.toUpperCase());
-                    if (!exists) allChannels.push(cur);
+                    if (!allChannels.some(c => c.n.toUpperCase() === cur.n.toUpperCase())) allChannels.push(cur);
                     cur = null;
                 }
             });
@@ -146,7 +137,7 @@
             if (currentFilter !== 'ALL' && !ch.g.includes(currentFilter)) return;
             const div = document.createElement('div');
             div.className = 'card' + (activeIdx === idx ? ' active' : '');
-            div.innerHTML = `${ch.isVip ? '<div class="tag-vip">VIP</div>' : ''}<img src="${ch.l}" onerror="this.src='https://via.placeholder.com/100x40/222/555?text=TV'"><div>${ch.n}</div>`;
+            div.innerHTML = `${ch.isVip ? '<div class="tag-vip">VIP</div>' : ''}<img src="${ch.l}" onerror="this.src='https://via.placeholder.com/100x42/222/555?text=TV'"><div>${ch.n}</div>`;
             div.onclick = () => play(idx);
             grid.appendChild(div);
         });
@@ -155,21 +146,20 @@
     function play(idx) {
         activeIdx = idx; renderGrid();
         const ch = allChannels[idx];
-        let srcObj = { src: ch.u };
-
-        if (ch.u.includes('.mpd')) {
-            srcObj.type = 'application/dash+xml';
-            if (ch.i) {
-                srcObj.keySystems = { 'org.w3.clearkey': { clearkeys: { [base64ToHex(ch.i)]: base64ToHex(ch.k) } } };
-            }
-        } else {
-            srcObj.type = 'application/x-mpegURL';
+        let srcObj = { src: ch.u, type: ch.u.includes('.mpd') ? 'application/dash+xml' : 'application/x-mpegURL' };
+        if (ch.i) {
+            srcObj.keySystems = { 'org.w3.clearkey': { clearkeys: { [base64ToHex(ch.i)]: base64ToHex(ch.k) } } };
         }
         player.src(srcObj);
         player.play().catch(() => { player.load(); player.play(); });
     }
 
-    function filter(g) { currentFilter = g; renderGrid(); }
+    function filter(g, btn) {
+        currentFilter = g;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderGrid();
+    }
     init();
 </script>
 </body>
