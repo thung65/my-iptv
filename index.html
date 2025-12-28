@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IPTV PRO - DISCOVERY UPDATED</title>
+    <title>IPTV GITHUB FIRST - VIP DECRYPT</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
@@ -11,15 +11,15 @@
         body { margin: 0; background: var(--bg); color: #fff; font-family: 'Segoe UI', sans-serif; display: flex; height: 100vh; overflow: hidden; }
         #sidebar { width: 380px; background: #0f0f0f; border-right: 1px solid #222; display: flex; flex-direction: column; }
         .header { padding: 15px; background: #151515; border-bottom: 2px solid var(--accent); }
-        .header h2 { margin: 0; font-size: 16px; color: var(--accent); text-transform: uppercase; }
+        .header h2 { margin: 0; font-size: 14px; color: var(--accent); text-transform: uppercase; }
+        .search-box { padding: 10px; background: #111; }
+        #search { width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #333; background: #000; color: #fff; box-sizing: border-box; outline: none; }
         #list { flex: 1; overflow-y: auto; scrollbar-width: thin; }
-        .g-title { background: #1a1a1a; padding: 10px 15px; font-size: 11px; color: #888; text-transform: uppercase; position: sticky; top: 0; z-index: 10; border-bottom: 1px solid #222; }
+        .g-title { background: #1a1a1a; padding: 10px 15px; font-size: 11px; color: var(--accent); text-transform: uppercase; position: sticky; top: 0; z-index: 10; border-bottom: 1px solid #222; opacity: 0.9; }
         .item { padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #111; font-size: 13px; display: flex; align-items: center; transition: 0.2s; }
         .item:hover { background: #181818; }
         .item.active { background: #102a16; color: var(--accent); border-left: 4px solid var(--accent); }
-        .channel-logo { width: 50px; height: 35px; object-fit: contain; margin-right: 12px; background: #000; border-radius: 4px; padding: 2px; }
-        .channel-info { flex: 1; display: flex; justify-content: space-between; align-items: center; }
-        .tag-vip { font-size: 9px; padding: 2px 5px; border-radius: 3px; font-weight: bold; background: var(--accent); color: #000; }
+        .channel-logo { width: 50px; height: 35px; object-fit: contain; margin-right: 12px; background: #000; border-radius: 4px; }
         #main { flex: 1; position: relative; background: #000; display: flex; align-items: center; }
         video { width: 100%; height: 100%; outline: none; }
         #loader { position: absolute; inset: 0; background: rgba(0,0,0,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 20; }
@@ -31,8 +31,11 @@
 
 <div id="sidebar">
     <div class="header">
-        <h2>VIP QUỐC TẾ TỔNG HỢP</h2>
-        <div id="status" style="font-size: 10px; color: #888; margin-top:5px;">Đang tải danh sách...</div>
+        <h2>DANH SÁCH GITHUB & VIP</h2>
+        <div id="status" style="font-size: 10px; color: #666; margin-top:5px;">Đang ưu tiên tải GitHub...</div>
+    </div>
+    <div class="search-box">
+        <input type="text" id="search" placeholder="Tìm tên kênh hoặc nhóm...">
     </div>
     <div id="list"></div>
 </div>
@@ -43,49 +46,34 @@
 </div>
 
 <script>
-    const VIP_DATA = [
-        { g: "QUỐC TẾ VIP (GIẢI MÃ)", n: "DMAX (Ô TÔ - KỸ THUẬT)", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/dmax.smil/manifest.mpd", i: "53b26f934ae03a20b56477cfb9c5dca2", k: "0c64ccfb978e739bd33344075492aec3", l: "https://106b9c59d.vws.vegacdn.vn/rBN9EfEEFSyoELIQDjEu/1200x1200x0/cmc_new/img.live_channel/0/0/0/0/271.jpg" },
-        { g: "QUỐC TẾ VIP (GIẢI MÃ)", n: "HBO HD", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/hbo.smil/manifest.mpd", i: "09ddfe3d63863cafaeb79d0546b098ab", k: "3de0f38dcf014827dfd5bec38743c6a2", l: "https://vnepg.site/logos/129.png" },
-        { g: "QUỐC TẾ VIP (GIẢI MÃ)", n: "AXN HD", u: "https://s7771.cdn.mytvnet.vn/pkg20/live_dzones/axn.smil/manifest.mpd", i: "9d29f87efdec3c9fab368f724e62ad0e", k: "6f1c09c035eab36323d60d1454db3d20", l: "https://vnepg.site/logos/163.png" },
-        { g: "QUỐC TẾ VIP (GIẢI MÃ)", n: "CINEMAX", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/max.smil/manifest.mpd", i: "acb4c23471063327adc732e283c0847f", k: "e9868f51473d0fd859ede48d531c2b0", l: "https://vnepg.site/logos/130.png" },
-        { g: "QUỐC TẾ VIP (GIẢI MÃ)", n: "CINEMAWORLD", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/cinemaworld.smil/manifest.mpd", i: "ee7915564d7439d09bd3556ffccc87a4", k: "b35e12a75a42e4f9184723a90ff42d9c", l: "https://vnepg.site/logos/164.png" },
-        { g: "QUỐC TẾ VIP (GIẢI MÃ)", n: "WARNER TV", u: "https://s7771.cdn.mytvnet.vn/pkg20/live_dzones/warnertv.smil/manifest.mpd", i: "0886d09a40bff3a00aa6dd4dbaf9c13b", k: "34f1908c1e2e25ee060046d40f14aec9", l: "https://vnepg.site/logos/169.png" },
-        // --- SỬA LINK DISCOVERY TẠI ĐÂY ---
-        { g: "QUỐC TẾ VIP (GIẢI MÃ)", n: "DISCOVERY ASIA", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/dscasia.smil/manifest.mpd", i: "934907b13abe3963a6253a453846924c", k: "788e2835fb98568aed2f47bbdc091515", l: "https://vnepg.site/logos/145.png" },
-        { g: "QUỐC TẾ VIP (GIẢI MÃ)", n: "DISCOVERY CHANNEL", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/dsc.smil/manifest.mpd", i: "8677c3850022370ca981c2f9435a4d46", k: "1689269430f9a2b8e390c50d3c631e78", l: "https://vnepg.site/logos/144.png" },
-        // ---------------------------------
-        { g: "QUỐC TẾ VIP (GIẢI MÃ)", n: "ANIMAL PLANET", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/ap.smil/manifest.mpd", i: "ec6f072c7125377a9bc0ae61598095f4", k: "1d5388e0781415ebcec99f4f5ad75875", l: "https://vnepg.site/logos/143.png" },
-        { g: "QUỐC TẾ VIP (GIẢI MÃ)", n: "BBC EARTH", u: "https://s7771.cdn.mytvnet.vn/pkg20/live_dzones/bbcearth.smil/manifest.mpd", i: "5014941a2c42379880b5ed72304c165f", k: "3fa1fe3cd39a52f4eefd3fdf7161e89", l: "https://vnepg.site/logos/148.png" },
-        { g: "QUỐC TẾ VIP (GIẢI MÃ)", n: "BBC LIFESTYLE", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/bbclifestyle.smil/manifest.mpd", i: "58b949986ed13294bc01bf330abc527", k: "23e8c5f2fe202908ac2d6554d9527299", l: "https://vnepg.site/logos/149.png" },
-        { g: "QUỐC TẾ VIP (GIẢI MÃ)", n: "BBC NEWS", u: "https://s7771.cdn.mytvnet.vn/pkg20/live_dzones/bbcworldnews.smil/manifest.mpd", i: "d374b8f39904bf572689ea347ae86591", k: "096de45d23058e1cb7b50022e91cf694", l: "https://vnepg.site/logos/151.png" },
-        { g: "QUỐC TẾ VIP (GIẢI MÃ)", n: "TLC", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/tlc.smil/manifest.mpd", i: "bf908629732639ada481a6208296d9c7", k: "ca9bf0362377b5e2f16df035f372f4d", l: "https://vnepg.site/logos/168.png" },
-        { g: "QUỐC TẾ VIP (GIẢI MÃ)", n: "FASHION TV HD", u: "https://s7771.cdn.mytvnet.vn/pkg20/live_dzones/ftv.smil/manifest.mpd", i: "c1d9f25701023508ba6737e3a8c7001", k: "30c3613e9b06e0f7cc201014f31bf5d", l: "https://vnepg.site/logos/165.png" },
-        { g: "QUỐC TẾ VIP (GIẢI MÃ)", n: "ABC AUSTRALIA", u: "https://s935.cdn.mytvnet.vn/pkg20/live_dzones/apius.smil/manifest.mpd", i: "9a09a73ec1dc348584e2f130e27da667", k: "06fd81a6feaffbdab92edf347e7b469c", l: "https://vnepg.site/logos/153.png" },
-        { g: "QUỐC TẾ VIP (GIẢI MÃ)", n: "BLOOMBERG", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/bloomberg.smil/manifest.mpd", i: "1071393f8fc23f3a9a28028142110f7", k: "a0f8f8c3c72e0ffff811d534c929c57c", l: "https://vnepg.site/logos/154.png" },
-        
-        { g: "THIẾU NHI QUỐC TẾ", n: "CARTOON NETWORK", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/cn.smil/manifest.mpd", i: "3c20166660a93a75ec77db81567389f7", k: "3cc1ad643aece3fe31c9c6a2e5b8c21", l: "https://vnepg.site/logos/140.png" },
-        { g: "THIẾU NHI QUỐC TẾ", n: "DREAMWORKS", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/dreamwork.smil/manifest.mpd", i: "67dae20527c3dadaae503aa91577cb", k: "59328f621d56767bc5ff9404a8f94016", l: "https://vnepg.site/logos/141.png" },
-        { g: "THIẾU NHI QUỐC TẾ", n: "CARTOONITO", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/boomerang.smil/manifest.mpd", i: "b1f0d759e914369db388b3b0dc815971", k: "5678d317e17007a88a9b9539e4526512", l: "https://www.diversetechgeek.com/wp-content/uploads/2021/09/cartoonito_logo.jpeg" },
-        { g: "THIẾU NHI QUỐC TẾ", n: "BBC CBEEBIES", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/cbb.smil/manifest.mpd", i: "cca73a006b4b39a595207ceb5ed9ca0a", k: "b833d1f40c261ef78896f97e06f80cdc", l: "https://vnepg.site/logos/150.png" },
-        
-        { g: "SCTV GIẢI MÃ", n: "SCTV 9 HD", u: "https://livecdn.seenow.vn/mean/SCTV9/manifest.mpd", i: "22a9a9a63d2746df9f90c184c596105a", k: "2d9d24caeaea42f8b44e413fe04f0e5c", l: "" },
-        { g: "SCTV GIẢI MÃ", n: "SCTV 15 HD", u: "https://livecdn.seenow.vn/mean/SCTV15HD/manifest.mpd", i: "a7c942778e874d43be92b8d0a0cd11b4", k: "6d54358306571658ffdb952c6560688b", l: "" },
-        { g: "SCTV GIẢI MÃ", n: "SCTV 17 HD", u: "https://livecdn.seenow.vn/mean/SCTV17HD/manifest.mpd", i: "a66f663462f4e09e7019688040cc1144", k: "a66f663462f4e09e7019688040cc1144", l: "" }
-    ];
+    // Dữ liệu giải mã chuẩn (Sẽ được dùng để thay thế link thường nếu tên kênh trùng nhau)
+    const VIP_MAP = {
+        "HBO HD": { u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/hbo.smil/manifest.mpd", i: "09ddfe3d63863cafaeb79d0546b098ab", k: "3de0f38dcf014827dfd5bec38743c6a2", l: "https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/2025101112004508.jpg" },
+        "DMAX": { u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/dmax.smil/manifest.mpd", i: "53b26f934ae03a20b56477cfb9c5dca2", k: "0c64ccfb978e739bd33344075492aec3", l: "https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/2025110412260998.jpg" },
+        "CINEMAX HD": { u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/max.smil/manifest.mpd", i: "acb4c23471063327adc732e283c0847f", k: "e9868f51473d0fd859ede48d531c2b0", l: "https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/2025101112012221.jpg" },
+        "AXN HD": { u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/axn.smil/manifest.mpd", i: "9d29f87efdec3c9fab368f724e62ad0e", k: "6f1c09c035eab36323d60d1454db3d20", l: "https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/2025101112020264.jpg" },
+        "CINEMAXWORLD HD": { u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/cinemaworld.smil/manifest.mpd", i: "ee7915564d7439d09bd3556ffccc87a4", k: "b35e12a75a42e4f9184723a90ff42d9c", l: "https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/2025101112013869.jpg" },
+        "DISCOVERY HD": { u: "https://s7770.cdn.mytvnet.vn/pkg20/live_dzones/dsc.smil/manifest.mpd", i: "60Fg6lU6Mh2JlVPk55b+wg", k: "vqWgcVfgxNF7Eas5lRf5Ug", l: "https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/2025101112294108.jpg" },
+        "DISCOVERY ASIA HD": { u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/dscasia.smil/manifest.mpd", i: "k0kHsTS+OWOmJjpFOEaSTA", k: "eI4oNfuYVortL0e73AkVFQ", l: "https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/2025101112300368.jpg" },
+        "CARTOON NETWORK HD": { u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/cn.smil/manifest.mpd", i: "PCAWZmCpOnWsd9uBVnOJ9w", k: "PMGt1Drszj/jHJxqKluMIQ", l: "https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/2025101112303314.jpg" },
+        "WBTV HD": { u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/wtv.smil/manifest.mpd", i: "CG0JpAv/OgCqbdTbr5wTsg", k: "NPGQjP4uBe4GAEbUDxSuyQ", l: "https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/2025101113084887.jpg" }
+    };
 
     const GITHUB_URL = "https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123";
-    let allChannels = [...VIP_DATA];
-    let shakaPlayer, hlsPlayer;
+    let allChannels = [];
+    let player, hls;
 
     async function init() {
         shaka.polyfill.installAll();
-        shakaPlayer = new shaka.Player(document.getElementById('video'));
-        await loadGitHub();
+        player = new shaka.Player(document.getElementById('video'));
+        await loadGitHubFirst();
         render();
         play(0);
+        
+        document.getElementById('search').addEventListener('input', (e) => render(e.target.value));
     }
 
-    async function loadGitHub() {
+    async function loadGitHubFirst() {
         try {
             const res = await fetch(GITHUB_URL);
             const text = await res.text();
@@ -95,26 +83,40 @@
             lines.forEach(line => {
                 line = line.trim();
                 if (line.startsWith('#EXTINF')) {
-                    const name = line.split(',')[1];
+                    const name = line.split(',')[1]?.trim();
                     const group = line.match(/group-title="([^"]+)"/);
                     const logo = line.match(/tvg-logo="([^"]+)"/);
-                    if (name) current = { n: name.trim(), g: group ? group[1].toUpperCase() : "MỚI CẬP NHẬT", l: logo ? logo[1] : "" };
+                    if (name) {
+                        current = { n: name, g: group ? group[1] : "GITHUB", l: logo ? logo[1] : "" };
+                    }
                 } else if (line.startsWith('http') && current) {
                     current.u = line;
-                    const isDup = VIP_DATA.some(v => v.n.toLowerCase().replace(/\s/g, '') === current.n.toLowerCase().replace(/\s/g, ''));
-                    if (!isDup) allChannels.push(current);
+                    // Kiểm tra nếu kênh này có Key giải mã VIP thì cập nhật luôn
+                    if (VIP_MAP[current.n]) {
+                        const vip = VIP_MAP[current.n];
+                        current.u = vip.u;
+                        current.i = vip.i;
+                        current.k = vip.k;
+                        current.l = vip.l;
+                    }
+                    allChannels.push(current);
                     current = null;
                 }
             });
-            document.getElementById('status').innerText = `Đã tải ${allChannels.length} kênh.`;
-        } catch (e) { document.getElementById('status').innerText = "Lỗi GitHub."; }
+            document.getElementById('status').innerText = `GitHub: ${allChannels.length} kênh - Đã ưu tiên đầu danh sách.`;
+        } catch (e) { document.getElementById('status').innerText = "Lỗi kết nối GitHub!"; }
     }
 
-    function render() {
+    function render(filter = "") {
         const list = document.getElementById('list');
         list.innerHTML = "";
         let lastG = "";
-        allChannels.forEach((ch, idx) => {
+        const filtered = allChannels.filter(ch => 
+            ch.n.toLowerCase().includes(filter.toLowerCase()) || 
+            ch.g.toLowerCase().includes(filter.toLowerCase())
+        );
+
+        filtered.forEach((ch, idx) => {
             if (ch.g !== lastG) {
                 const g = document.createElement('div');
                 g.className = 'g-title'; g.innerText = ch.g;
@@ -123,8 +125,13 @@
             const item = document.createElement('div');
             item.className = 'item';
             const img = ch.l || "https://via.placeholder.com/50x35/222/fff?text=TV";
-            item.innerHTML = `<img class="channel-logo" src="${img}" onerror="this.src='https://via.placeholder.com/50x35/222/fff?text=TV'"><div class="channel-info"><span>${ch.n}</span>${ch.i ? '<span class="tag-vip">DRM</span>' : ''}</div>`;
-            item.onclick = () => play(idx);
+            item.innerHTML = `
+                <img class="channel-logo" src="${img}" onerror="this.src='https://via.placeholder.com/50x35/222/fff?text=TV'">
+                <div class="channel-info">
+                    <span>${ch.n}</span>
+                    ${ch.i ? '<span class="tag-vip">DRM VIP</span>' : ''}
+                </div>`;
+            item.onclick = () => play(allChannels.indexOf(ch));
             list.appendChild(item);
         });
     }
@@ -134,22 +141,28 @@
         const video = document.getElementById('video');
         const loader = document.getElementById('loader');
         loader.style.display = 'flex';
-        document.querySelectorAll('.item').forEach((el, i) => el.classList.toggle('active', idx === i));
+        
+        document.querySelectorAll('.item').forEach(el => el.classList.remove('active'));
+        const currentItem = document.querySelectorAll('.item')[idx];
+        if(currentItem) currentItem.classList.add('active');
 
-        if (hlsPlayer) { hlsPlayer.destroy(); hlsPlayer = null; }
-        await shakaPlayer.unload();
+        if (hls) { hls.destroy(); hls = null; }
+        await player.unload();
 
         try {
             if (ch.u.includes('.m3u8') && !ch.i) {
-                if (Hls.isSupported()) { hlsPlayer = new Hls(); hlsPlayer.loadSource(ch.u); hlsPlayer.attachMedia(video); }
+                if (Hls.isSupported()) { hls = new Hls(); hls.loadSource(ch.u); hls.attachMedia(video); }
                 else { video.src = ch.u; }
             } else {
-                shakaPlayer.configure({ drm: { clearKeys: ch.i ? { [ch.i]: ch.k } : {} } });
-                shakaPlayer.getNetworkingEngine().registerRequestFilter((t, r) => { r.headers['User-Agent'] = 'Dalvik/2.1.0 (Linux; U; Android 9; TV Box)'; });
-                await shakaPlayer.load(ch.u);
+                player.configure({ drm: { clearKeys: ch.i ? { [ch.i]: ch.k } : {} } });
+                player.getNetworkingEngine().registerRequestFilter((t, r) => { r.headers['User-Agent'] = 'Dalvik/2.1.0'; });
+                await player.load(ch.u);
             }
             loader.style.display = 'none';
-        } catch (e) { loader.style.display = 'none'; }
+        } catch (e) { 
+            loader.style.display = 'none'; 
+            console.error("Lỗi phát:", e);
+        }
     }
 
     init();
