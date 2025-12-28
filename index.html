@@ -3,35 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TV VIP - DUAL FIX FINAL</title>
+    <title>SAMSUNG TV LITE</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mux.js/6.0.1/mux.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
     <style>
-        :root { --gold: #ffcc00; --bg: #000; --card: #151515; }
-        body { margin: 0; background: var(--bg); color: #fff; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-        #video-box { width: 100%; max-width: 960px; margin: 0 auto; background: #000; aspect-ratio: 16/9; border-bottom: 2px solid var(--gold); }
-        video { width: 100%; height: 100%; outline: none; }
-        .tabs { display: flex; overflow-x: auto; background: #111; padding: 10px; gap: 8px; border-bottom: 1px solid #222; scrollbar-width: none; }
-        .tabs::-webkit-scrollbar { display: none; }
-        .tabs button { padding: 8px 16px; border: none; border-radius: 4px; background: #222; color: #888; white-space: nowrap; font-size: 11px; font-weight: bold; cursor: pointer; text-transform: uppercase; }
-        .tabs button.active { background: var(--gold); color: #000; }
-        #list { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; padding: 15px; overflow-y: auto; flex: 1; align-content: start; }
-        .item { background: var(--card); border-radius: 8px; padding: 12px 5px; text-align: center; cursor: pointer; border: 1px solid #222; transition: 0.2s; }
-        .item.active { border-color: var(--gold); background: #221f00; border-bottom: 4px solid var(--gold); }
-        .img-wrap { width: 100%; height: 45px; display: flex; align-items: center; justify-content: center; margin-bottom: 5px; }
-        .item img { max-width: 85%; max-height: 100%; object-fit: contain; }
-        .item span { font-size: 10px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: bold; color: #ccc; }
+        body { margin: 0; background: #000; color: #fff; font-family: sans-serif; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
+        #video-box { width: 100%; aspect-ratio: 16/9; background: #000; }
+        video { width: 100%; height: 100%; }
+
+        /* Tabs đơn giản, không hiệu ứng */
+        .tabs { display: flex; overflow-x: auto; background: #111; padding: 10px; gap: 8px; border-bottom: 1px solid #333; }
+        .tabs button { padding: 10px 15px; border: none; background: #222; color: #999; font-size: 13px; font-weight: bold; cursor: pointer; }
+        .tabs button.active { background: #ffcc00; color: #000; }
+
+        /* Danh sách kênh tối giản */
+        #list { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; padding: 10px; overflow-y: auto; flex: 1; }
+        .item { background: #111; padding: 12px 5px; text-align: center; border: 1px solid #222; }
+        .item.active { border-color: #ffcc00; background: #1a1a00; }
+        .item img { height: 35px; max-width: 90%; object-fit: contain; display: block; margin: 0 auto 5px; }
+        .item span { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
     </style>
 </head>
 <body>
 
 <div id="video-box"><video id="video" controls autoplay playsinline></video></div>
 
-<div class="tabs" id="tab-bar">
+<div class="tabs">
     <button class="active" onclick="setTab('ALL', this)">TẤT CẢ</button>
     <button onclick="setTab('VTV', this)">VTV</button>
-    <button onclick="setTab('HTV', this)">HTV/HTVC</button>
+    <button onclick="setTab('HTV', this)">HTV</button>
     <button onclick="setTab('SCTV', this)">SCTV</button>
     <button onclick="setTab('VTVCAB', this)">VTVCAB</button>
     <button onclick="setTab('ĐỊA PHƯƠNG', this)">ĐỊA PHƯƠNG</button>
@@ -42,7 +43,7 @@
 
 <script>
     const GITHUB_URL = "https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123";
-    let video, player, allData = [], curTab = "ALL", curIdx = -1;
+    let video = document.getElementById('video'), player, allData = [], curTab = "ALL";
 
     // TỔNG HỢP DANH SÁCH CỐ ĐỊNH (VTV + QUỐC TẾ)
     const FIXED_CHANNELS = [
@@ -83,99 +84,75 @@
         { n: "BBC LIFESTYLE", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/bbclifestyle.smil/manifest.mpd", i: "WLlJmG7RMpS8AbDzMKvFJw", k: "I+jF8v4gKQasLWVU2VJymQ", l: "https://vnepg.site/logos/149.png", g: "QUỐC TẾ" },
         { n: "FASHION TV", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/ftv.smil/manifest.mpd", i: "wdnyVwECNQi/pnN+OoxwAQ", k: "MMNhPpsG4PfMIBAU8xv12A", l: "https://vnepg.site/logos/165.png", g: "QUỐC TẾ" }
     ];
-    function toHex(b64) {
-        try {
-            const bin = atob(b64.replace(/-/g, '+').replace(/_/g, '/'));
-            let res = "";
-            for (let i = 0; i < bin.length; i++) res += bin.charCodeAt(i).toString(16).padStart(2, '0');
-            return res;
-        } catch(e) { return ""; }
+
+
+    function toHex(b) {
+        try { return Array.from(atob(b.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0).toString(16).padStart(2,'0')).join(''); } catch(e) { return ""; }
     }
 
     async function start() {
-        video = document.getElementById('video');
         shaka.polyfill.installAll();
         player = new shaka.Player(video);
         
-        // Cấu hình giả lập để tránh bị chặn IP/Referer
-        player.getNetworkingEngine().registerRequestFilter((type, request) => {
-            request.headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+        // Tối ưu cực hạn cho Samsung RAM yếu
+        player.configure({
+            streaming: { 
+                bufferingGoal: 8, 
+                rebufferingGoal: 2, 
+                bufferBehind: 0,
+                retryParameters: { maxAttempts: 2 }
+            }
         });
 
-        await loadData();
-        renderList();
-        if(allData.length > 0) playChannel(0);
-    }
-
-    async function loadData() {
         try {
             const r = await fetch(GITHUB_URL);
-            const txt = await r.text();
-            let external = [], cur = null;
-            txt.split('\n').forEach(line => {
-                line = line.trim();
-                if (line.startsWith('#EXTINF')) {
-                    const name = line.split(',')[1]?.trim() || "";
-                    let logo = line.match(/tvg-logo="([^"]+)"/i)?.[1] || "";
+            const t = await r.text();
+            let ext = [], cur = null;
+            t.split('\n').forEach(l => {
+                l = l.trim();
+                if (l.startsWith('#EXTINF')) {
+                    const n = l.split(',')[1] || "";
                     let g = "ĐỊA PHƯƠNG";
-                    if (name.includes("VTVCAB")) g = "VTVCAB";
-                    else if (name.includes("SCTV")) g = "SCTV";
-                    else if (name.includes("HTV")) g = "HTV";
-                    else if (name.includes("VTV")) g = "VTV";
-                    else if (name.includes("HBO") || name.includes("AXN")) g = "QUỐC TẾ";
-                    cur = { n: name, u: "", l: logo, g: g };
-                } else if (line.startsWith('http') && cur) {
-                    cur.u = line; external.push(cur); cur = null;
+                    if (n.includes("VTVCAB")) g = "VTVCAB";
+                    else if (n.includes("SCTV")) g = "SCTV";
+                    else if (n.includes("HTV")) g = "HTV";
+                    else if (n.includes("VTV")) g = "VTV";
+                    else if (n.includes("HBO") || n.includes("AXN")) g = "QUỐC TẾ";
+                    cur = { n, u: "", l: l.match(/tvg-logo="([^"]+)"/i)?.[1] || "", g };
+                } else if (l.startsWith('http') && cur) {
+                    cur.u = l; ext.push(cur); cur = null;
                 }
             });
-            allData = [...FIXED_CHANNELS, ...external].filter((v, i, a) => a.findIndex(t => t.u === v.u) === i);
-        } catch(e) { console.error(e); }
+            allData = [...FIXED, ...ext].filter((v,i,a) => a.findIndex(x => x.u === v.u) === i);
+            render();
+            if(allData.length > 0) play(allData[0]);
+        } catch(e) {}
     }
 
-    async function playChannel(idx) {
-        curIdx = idx; renderList();
-        const ch = allData[idx];
-
-        // BƯỚC 1: Hủy trình phát cũ hoàn toàn để làm sạch bộ nhớ DRM
-        await player.unload();
-
-        // BƯỚC 2: Cấu hình lại từ đầu cho trình phát (Mấu chốt để phát chung được)
-        if (ch.i && ch.k) {
-            // Nếu là kênh Quốc tế có DRM
-            let drmConfig = {};
-            drmConfig[toHex(ch.i)] = toHex(ch.k);
-            player.configure({
-                drm: { clearKeys: drmConfig }
-            });
-        } else {
-            // Nếu là kênh thường, XÓA HẲN cấu hình DRM cũ
-            player.configure({
-                drm: { clearKeys: {} }
-            });
-        }
-
-        // BƯỚC 3: Tải kênh
+    async function play(ch) {
+        await player.unload(); // Buộc tivi xóa bộ nhớ kênh cũ
+        let drm = (ch.i && ch.k) ? { [toHex(ch.i)]: toHex(ch.k) } : {};
+        player.configure({ drm: { clearKeys: drm } });
+        
         try {
             await player.load(ch.u);
             video.play();
         } catch (e) {
-            // Dự phòng cho link m3u8 nếu Shaka kén định dạng
-            console.log("Shaka Fallback to Native");
-            video.src = ch.u;
+            video.src = ch.u; // Fallback nếu Shaka quá tải
             video.play();
         }
+        render(ch.u);
     }
 
-    function renderList() {
+    function render(activeUrl = "") {
         const box = document.getElementById('list');
         box.innerHTML = "";
-        allData.forEach((ch, i) => {
+        allData.forEach(ch => {
             if (curTab !== 'ALL' && ch.g !== curTab) return;
             const div = document.createElement('div');
-            div.className = `item ${curIdx === i ? 'active' : ''}`;
-            // GIỮ NGUYÊN HD THEO Ý BẠN
-            div.innerHTML = `<div class="img-wrap"><img src="${ch.l}" referrerpolicy="no-referrer" onerror="this.src='https://via.placeholder.com/100x45/222/555?text=TV'"></div><span>${ch.n}</span>`;
-            div.onclick = () => playChannel(i);
+            div.className = `item ${ch.u === activeUrl ? 'active' : ''}`;
+            div.innerHTML = `<img src="${ch.l}" onerror="this.src='https://via.placeholder.com/50?text=TV'"><span>${ch.n}</span>`;
+            div.onclick = () => play(ch);
             box.appendChild(div);
         });
     }
@@ -184,7 +161,7 @@
         curTab = t;
         document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        renderList();
+        render();
     }
 
     start();
