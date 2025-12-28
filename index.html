@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TV VIP - ULTIMATE PLAYER</title>
+    <title>TV VIP - DUAL PLAYER (DRM & HLS)</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 
     <style>
         :root { --gold: #ffcc00; --bg: #000; --card: #151515; }
@@ -18,7 +17,7 @@
         .tabs button { padding: 8px 16px; border: none; border-radius: 4px; background: #222; color: #888; white-space: nowrap; font-size: 11px; font-weight: bold; cursor: pointer; text-transform: uppercase; transition: 0.3s; }
         .tabs button.active { background: var(--gold); color: #000; }
         #list { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; padding: 15px; overflow-y: auto; flex: 1; align-content: start; }
-        .item { background: var(--card); border-radius: 8px; padding: 12px 5px; text-align: center; cursor: pointer; border: 1px solid #222; transition: 0.2s; }
+        .item { background: var(--card); border-radius: 8px; padding: 12px 5px; text-align: center; cursor: pointer; border: 1px solid #222; transition: 0.2s; height: fit-content; }
         .item.active { border-color: var(--gold); background: #221f00; border-bottom: 4px solid var(--gold); }
         .img-wrap { width: 100%; height: 45px; display: flex; align-items: center; justify-content: center; margin-bottom: 5px; overflow: hidden; }
         .item img { max-width: 85%; max-height: 100%; object-fit: contain; }
@@ -43,8 +42,8 @@
 
 <script>
     const GITHUB_URL = "https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123";
-    let video, player, hls, allData = [], curTab = "ALL", curIdx = -1;
-    
+    let video, player, allData = [], curTab = "ALL", curIdx = -1;
+
     // TỔNG HỢP DANH SÁCH CỐ ĐỊNH (VTV + QUỐC TẾ)
     const FIXED_CHANNELS = [
         // NHÓM VTV
@@ -97,8 +96,32 @@
     async function start() {
         video = document.getElementById('video');
         shaka.polyfill.installAll();
-        player = new shaka.Player(video);
         
+        // Kiểm tra xem trình duyệt có hỗ trợ Shaka không
+        if (!shaka.Player.isBrowserSupported()) {
+            alert('Trình duyệt của bạn không hỗ trợ trình phát này!');
+            return;
+        }
+
+        player = new shaka.Player(video);
+
+        // Cấu hình Shaka hỗ trợ cả HLS mượt hơn
+        player.configure({
+            streaming: {
+                bufferingGoal: 30,
+                rebufferingGoal: 15,
+                alwaysStreamText: true
+            },
+            manifest: {
+                hls: { ignoreManifestProgramDateTime: true }
+            }
+        });
+
+        // Giả lập thiết bị để vượt tường lửa MyTV/VTV
+        player.getNetworkingEngine().registerRequestFilter((type, request) => {
+            request.headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+        });
+
         await loadData();
         renderList();
         if(allData.length > 0) playChannel(0);
@@ -108,7 +131,7 @@
         try {
             const r = await fetch(GITHUB_URL);
             const txt = await r.text();
-            let externalChannels = [], cur = null;
+            let external = [], cur = null;
             txt.split('\n').forEach(line => {
                 line = line.trim();
                 if (line.startsWith('#EXTINF')) {
@@ -123,45 +146,33 @@
                     else if (nU.includes("HBO") || nU.includes("AXN")) g = "QUỐC TẾ";
                     cur = { n: name, u: "", l: logo, g: g };
                 } else if (line.startsWith('http') && cur) {
-                    cur.u = line; externalChannels.push(cur); cur = null;
+                    cur.u = line; external.push(cur); cur = null;
                 }
             });
-            allData = [...FIXED_CHANNELS, ...externalChannels].filter((v, i, a) => a.findIndex(t => t.u === v.u) === i);
+            allData = [...FIXED_CHANNELS, ...external].filter((v, i, a) => a.findIndex(t => t.u === v.u) === i);
         } catch(e) { console.error(e); }
     }
 
     async function playChannel(idx) {
         curIdx = idx; renderList();
         const ch = allData[idx];
-        const url = ch.u;
 
-        // Dọn dẹp trình phát cũ
-        if (hls) { hls.destroy(); hls = null; }
-        await player.unload();
-        video.src = "";
+        // Reset cấu hình DRM mỗi lần chuyển kênh
+        let drmConfig = {};
+        if (ch.i && ch.k) {
+            drmConfig[toHex(ch.i)] = toHex(ch.k);
+        }
+        
+        player.configure({ drm: { clearKeys: drmConfig } });
 
-        // TRƯỜNG HỢP 1: Link DRM (.mpd) -> Dùng Shaka
-        if (url.includes(".mpd") || (ch.i && ch.k)) {
-            let drmConfig = {};
-            if (ch.i && ch.k) drmConfig[toHex(ch.i)] = toHex(ch.k);
-            player.configure({ drm: { clearKeys: drmConfig } });
-            try { await player.load(url); video.play(); } catch(e) { console.error(e); }
-        } 
-        // TRƯỜNG HỢP 2: Link .m3u8 -> Dùng Hls.js
-        else if (url.includes(".m3u8")) {
-            if (Hls.isSupported()) {
-                hls = new Hls();
-                hls.loadSource(url);
-                hls.attachMedia(video);
-                hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
-            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                video.src = url;
-                video.addEventListener('loadedmetadata', () => video.play());
-            }
-        } 
-        // TRƯỜNG HỢP 3: Các link video trực tiếp khác
-        else {
-            video.src = url;
+        try {
+            await player.unload(); // Giải phóng kênh cũ
+            await player.load(ch.u);
+            video.play();
+        } catch (e) {
+            console.error("Lỗi phát:", e.code);
+            // Nếu Shaka lỗi, thử phát trực tiếp bằng thẻ video (dành cho link m3u8 đơn giản)
+            video.src = ch.u;
             video.play();
         }
     }
@@ -191,3 +202,4 @@
 </script>
 </body>
 </html>
+
