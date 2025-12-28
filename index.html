@@ -3,28 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IPTV QUỐC TẾ FULL 19 KÊNH</title>
+    <title>IPTV FULL QUỐC TẾ - BẢN CHUẨN</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
     <style>
-        :root { --main: #00ffcc; --bg: #050505; }
-        body { margin: 0; background: var(--bg); color: #fff; font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; }
-        #player-box { width: 100%; max-width: 960px; margin: 0 auto; background: #000; aspect-ratio: 16/9; border-bottom: 2px solid var(--main); }
+        body { margin: 0; background: #000; color: #fff; font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; }
+        #video-container { width: 100%; aspect-ratio: 16/9; background: #000; border-bottom: 2px solid #ffcc00; }
         video { width: 100%; height: 100%; }
-        .list { flex: 1; padding: 10px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
-        .item { background: #111; border: 1px solid #333; border-radius: 6px; padding: 12px 5px; text-align: center; cursor: pointer; font-size: 11px; font-weight: bold; transition: 0.2s; }
-        .item:hover { border-color: var(--main); background: #1a1a1a; }
-        .item.active { border-color: var(--main); background: #00221a; color: var(--main); }
+        #list { flex: 1; overflow-y: auto; padding: 10px; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+        .ch-btn { background: #1a1a1a; border: 1px solid #333; padding: 12px 5px; text-align: center; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: bold; }
+        .ch-btn.active { background: #ffcc00; color: #000; border-color: #fff; }
     </style>
 </head>
 <body>
 
-<div id="player-box"><video id="video" autoplay controls playsinline></video></div>
-<div class="list" id="grid"></div>
+<div id="video-container"><video id="video" autoplay controls playsinline></video></div>
+<div id="list"></div>
 
 <script>
     const CHANNELS = [
-        { n: "HBO", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/hbo.smil/manifest.mpd", i: "09ddfe3d63863cafaeb79d0546b098ab", k: "3de0f38dcf014827dfd5bec38743c6a2" },
-        { n: "AXN", u: "https://s7771.cdn.mytvnet.vn/pkg20/live_dzones/axn.smil/manifest.mpd", i: "9d29f87efdec3c9fab368f724e62ad0e", k: "6f1c09c035eab36323d60d1454db3d20" },
+        { n: "HBO HD", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/hbo.smil/manifest.mpd", i: "09ddfe3d63863cafaeb79d0546b098ab", k: "3de0f38dcf014827dfd5bec38743c6a2" },
+        { n: "AXN HD", u: "https://s7771.cdn.mytvnet.vn/pkg20/live_dzones/axn.smil/manifest.mpd", i: "9d29f87efdec3c9fab368f724e62ad0e", k: "6f1c09c035eab36323d60d1454db3d20" },
         { n: "CINEMAX", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/max.smil/manifest.mpd", i: "acb4c23471063327adc732e283c0847f", k: "e9868f5f473d0fd859ede48d531c2b0" },
         { n: "CINEMAWORLD", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/cinemaworld.smil/manifest.mpd", i: "ee7915564d7439d09bd3556ffccc87a4", k: "b35e12a75a42e6f9184723a90ff42d9c" },
         { n: "ANIMAL PLANET", u: "https://freem3u.xyz/api/live/play.mpd?fl=096fde45d23058e1cb7e560726804c3993db6e38ae0a0e2fa8859d3d72464dd59bc766cacc6d3d9f7abc7a5b377b277c8e416091686e87cb210fef21919640f524ed2c2dd1ce", i: "ec6f072c7125377a9bc0ae61598095f4", k: "1d5388e0781415ebcec9914f5ad75875" },
@@ -44,30 +42,27 @@
         { n: "BBC EARTH", u: "https://s7771.cdn.mytvnet.vn/pkg20/live_dzones/bbcearth.smil/manifest.mpd", i: "5014941a2c42379880b5edf72304c165", k: "f3fa0fe3cd39a52f4eefd36ff7161e89" }
     ];
 
-    let player;
+    let shakaPlayer;
 
     async function init() {
-        player = new shaka.Player(document.getElementById('video'));
-        const grid = document.getElementById('grid');
-        
+        shakaPlayer = new shaka.Player(document.getElementById('video'));
+        const grid = document.getElementById('list');
         CHANNELS.forEach((ch, idx) => {
-            const div = document.createElement('div');
-            div.className = 'item';
-            div.innerText = ch.n;
-            div.onclick = () => play(idx);
-            grid.appendChild(div);
+            const btn = document.createElement('div');
+            btn.className = 'ch-btn';
+            btn.innerText = ch.n;
+            btn.onclick = () => play(idx);
+            grid.appendChild(btn);
         });
-        
         if (CHANNELS.length > 0) play(0);
     }
 
     async function play(idx) {
         const ch = CHANNELS[idx];
-        document.querySelectorAll('.item').forEach((el, i) => el.classList.toggle('active', i === idx));
-        player.configure({ drm: { clearKeys: { [ch.i]: ch.k } } });
-        try { await player.load(ch.u); } catch (e) { console.error("Lỗi:", e); }
+        document.querySelectorAll('.ch-btn').forEach((b, i) => b.classList.toggle('active', i === idx));
+        shakaPlayer.configure({ drm: { clearKeys: { [ch.i]: ch.k } } });
+        try { await shakaPlayer.load(ch.u); } catch (e) { console.error("Lỗi:", e); }
     }
-
     document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
