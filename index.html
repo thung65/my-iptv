@@ -3,36 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SAMSUNG TV PRO - DVB SEENOW</title>
+    <title>SAMSUNG TV PRO - DVB GIÀ TRẺ</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mux.js/6.0.1/mux.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
 
     <style>
-        :root { --gold: #ffcc00; --bg: #000; --sidebar-bg: #111; --tab-blue: #002244; }
+        :root { --gold: #ffcc00; --bg: #000; --sidebar-bg: #111; --blue-btn: #0056b3; }
         body { margin: 0; background: var(--bg); color: #fff; font-family: 'Segoe UI', sans-serif; display: flex; height: 100vh; overflow: hidden; }
 
         /* SIDEBAR BÊN TRÁI */
-        #sidebar { width: 380px; background: var(--sidebar-bg); display: flex; flex-direction: column; border-right: 1px solid #222; }
+        #sidebar { width: 380px; background: var(--sidebar-bg); display: flex; flex-direction: column; border-right: 2px solid #333; }
 
-        /* TABS THEO YÊU CẦU: ALL ĐẦU - QUỐC TẾ CUỐI */
-        .tabs-header { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; background: #222; padding: 2px; }
-        .tabs-header button { padding: 14px 5px; border: none; background: var(--tab-blue); color: #fff; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 11px; }
+        /* TABS MÀU XANH DỄ NHÌN */
+        .tabs-header { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: #222; padding: 4px; }
+        .tabs-header button { padding: 18px 5px; border: none; background: #333; color: #fff; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 14px; border-radius: 4px; }
         .tabs-header button.active { background: var(--gold); color: #000; }
 
-        /* LIST KÊNH LOGO LỚN */
+        /* DANH SÁCH KÊNH */
         #channel-list { flex: 1; overflow-y: auto; padding: 10px; }
-        .item { display: flex; align-items: center; background: #1a1a1a; margin-bottom: 8px; padding: 10px; border-radius: 6px; cursor: pointer; border: 2px solid transparent; transition: 0.2s; }
+        .item { display: flex; align-items: center; background: #1a1a1a; margin-bottom: 10px; padding: 12px; border-radius: 8px; cursor: pointer; border: 3px solid transparent; }
         .item.active { border-color: var(--gold); background: #222; }
-        .item img { width: 90px; height: 50px; object-fit: contain; background: #fff; border-radius: 4px; margin-right: 15px; flex-shrink: 0; }
-        .item span { font-size: 15px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .item img { width: 100px; height: 55px; object-fit: contain; background: #fff; border-radius: 5px; margin-right: 15px; flex-shrink: 0; }
+        .item span { font-size: 18px; font-weight: bold; }
 
-        /* VÙNG PHÁT VIDEO */
-        #right-content { flex: 1; position: relative; background: #000; display: flex; align-items: center; }
-        video { width: 100%; height: 100%; outline: none; }
+        /* VÙNG VIDEO VÀ NÚT ĐIỀU KHIỂN */
+        #right-content { flex: 1; display: flex; flex-direction: column; background: #000; }
+        #video-wrapper { flex: 1; position: relative; background: #000; display: flex; align-items: center; justify-content: center; }
+        video { width: 100%; height: 100%; max-height: 85vh; }
 
-        /* THÔNG BÁO OSD */
-        #osd { position: absolute; bottom: 40px; left: 40px; background: rgba(0,0,0,0.85); padding: 20px 30px; border-left: 6px solid var(--gold); border-radius: 0 10px 10px 0; display: none; z-index: 100; pointer-events: none; }
+        /* BỘ NÚT TĂNG GIẢM KÊNH CHO NGƯỜI GIÀ */
+        .remote-controls { 
+            height: 100px; 
+            background: #111; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 20px; 
+            border-top: 2px solid #333;
+        }
+        .btn-remote {
+            padding: 15px 40px;
+            font-size: 24px;
+            font-weight: bold;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: 0.2s;
+        }
+        .btn-prev { background-color: #d9534f; } /* Màu đỏ cho lùi */
+        .btn-next { background-color: #5cb85c; } /* Màu xanh cho tiến */
+        .btn-remote:active { transform: scale(0.9); }
+
+        /* OSD */
+        #osd { position: absolute; bottom: 30px; left: 30px; background: rgba(0,0,0,0.85); padding: 25px 40px; border-left: 8px solid var(--gold); border-radius: 10px; display: none; z-index: 100; pointer-events: none; }
     </style>
 </head>
 <body>
@@ -43,17 +71,24 @@
 </div>
 
 <div id="right-content">
-    <video id="video" autoplay playsinline controls></video>
-    <div id="osd">
-        <div id="osd-name" style="font-size: 26px; font-weight: bold;">TÊN KÊNH</div>
-        <div id="osd-group" style="font-size: 14px; color: var(--gold); text-transform: uppercase; margin-top: 5px;">NHÓM</div>
+    <div id="video-wrapper">
+        <video id="video" autoplay playsinline controls></video>
+        <div id="osd">
+            <div id="osd-name" style="font-size: 32px; font-weight: bold;"></div>
+            <div id="osd-group" style="font-size: 18px; color: var(--gold); margin-top: 5px;"></div>
+        </div>
+    </div>
+
+    <div class="remote-controls">
+        <button class="btn-remote btn-prev" onclick="changeChannel(-1)">◀ GIẢM KÊNH</button>
+        <button class="btn-remote btn-next" onclick="changeChannel(1)">TĂNG KÊNH ▶</button>
     </div>
 </div>
 
 <script>
     const GITHUB_URL = "https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123";
     
-    // DANH SÁCH FIXED BAO GỒM CÁC LINK SEENOW VÀ MYTV CÓ DRM
+    // DANH SÁCH FIXED CỦA BẠN (TÔI CHỈ ĐỂ VÀI CÁI MẪU, BẠN COPY HẾT VÀO NHÉ)
     const FIXED_CHANNELS = [
         // NHÓM VTV
         { n: "VTV1", u: "https://live.fptplay53.net/fnxch2/vtv1hd_abr.smil/chunklist_b4200000.m3u8", l: "https://vnepg.site/logos/1.png", g: "VTV" },
@@ -231,7 +266,7 @@
         { n: "BBC NEWS", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/bbcworldnews.smil/manifest.mpd", i: "x7pGCG3aNFqSnim/FV5FnA", k: "03S485kEv1cmieo0euhlkQ", l: "https://vnepg.site/logos/151.png", g: "QUỐC TẾ" },
         { n: "BLOOMBERG", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/bloomberg.smil/manifest.mpd", i: "EHE5P4/CN/OpooAoFCEQ9w", k: "eg+MPHLg//+BHVNMkpxXwg", l: "https://vnepg.site/logos/154.png", g: "QUỐC TẾ" },
         { n: "CARTOON NETWORK", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/cn.smil/manifest.mpd", i: "PCAWZmCpOnWsd9uBVnOJ9w", k: "PMGt1Drszj/jHJxqKluMIQ", l: "https://vnepg.site/logos/140.png", g: "QUỐC TẾ" },
-        { n: "CARTOONITO", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/boomerang.smil/manifest.mpd", i: "sfDXWekUNp2ziLOw3IFZcQ", k: "VnjTF-FwB6iKm5U55FJlEg", l: "https://www.diversetechgeek.com/wp-content/uploads/2021/09/cartoonito_logo.jpeg", g: "QUỐC TẾ" },
+        { n: "CARTOONITO", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/boomerang.smil/manifest.mpd", i: "sfDXWekUNp2ziLOw3IFZcQ", k: "VnjTF-FwB6iKm5U55FJlEg", l: "https://vnepg.site/logos/138.png", g: "QUỐC TẾ" },
         { n: "DREAMWORKS", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/dreamwork.smil/manifest.mpd", i: "Z9riBSfGPa2qrmCaqRV3yw", k: "WTKPYh1WdnvF/5QEqJQGgw", l: "https://vnepg.site/logos/141.png", g: "QUỐC TẾ" },
         { n: "BBC EARTH", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/bbcearth.smil/manifest.mpd", i: "UBSUGixCN5iAte33IwTBZQ", k: "8/oP4805pS9O79Nv9xYeiQ", l: "https://vnepg.site/logos/148.png", g: "QUỐC TẾ" },
         { n: "BBC CBEEBIES", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/cbb.smil/manifest.mpd", i: "zKc6AGtLOaWVIHzrXtnKCg", k: "uDPR9AwmHveIlvl+BvgM3A", l: "https://vnepg.site/logos/150.png", g: "QUỐC TẾ" },
@@ -239,10 +274,9 @@
         { n: "FASHION TV", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/ftv.smil/manifest.mpd", i: "wdnyVwECNQi/pnN+OoxwAQ", k: "MMNhPpsG4PfMIBAU8xv12A", l: "https://vnepg.site/logos/165.png", g: "QUỐC TẾ" }
     ];
 
-    let player, video = document.getElementById('video'), allChannels = [], curTab = "ALL";
+    let player, video = document.getElementById('video'), allChannels = [], currentIdx = 0, curTab = "ALL";
     const GROUP_ORDER = ["ALL", "VTV", "THIẾT YẾU", "VTVCAB", "HTV", "ĐỊA PHƯƠNG", "SCTV", "QUỐC TẾ"];
 
-    // Hàm giải mã Key DRM (Hỗ trợ cả Seenow và MyTV)
     function toHex(v) {
         if (!v || v.length === 32) return v;
         try {
@@ -254,12 +288,7 @@
     async function init() {
         shaka.polyfill.installAll();
         player = new shaka.Player(video);
-
-        // Tối ưu để không bị lag khi chuyển kênh
-        player.configure({
-            streaming: { bufferingGoal: 3, rebufferingGoal: 1 },
-            manifest: { dash: { ignoreMinBufferTime: true } }
-        });
+        player.configure({ streaming: { bufferingGoal: 3, rebufferingGoal: 1 } });
 
         // Tạo Tabs
         const tabsBox = document.getElementById('tabs-box');
@@ -292,28 +321,31 @@
                     temp.u = l; ext.push(temp); temp = null;
                 }
             });
-            // Gộp danh sách: FIXED luôn đứng trước
             allChannels = [...FIXED_CHANNELS, ...ext];
             renderList();
-            if(allChannels.length > 0) playChannel(allChannels[0]);
+            if(allChannels.length > 0) playChannel(0);
         } catch(e) {
             allChannels = FIXED_CHANNELS;
             renderList();
         }
     }
 
-    async function playChannel(ch) {
+    async function playChannel(idx) {
+        if (idx < 0) idx = allChannels.length - 1;
+        if (idx >= allChannels.length) idx = 0;
+        currentIdx = idx;
+        const ch = allChannels[currentIdx];
+
+        // OSD
         const osd = document.getElementById('osd');
         document.getElementById('osd-name').innerText = ch.n;
         document.getElementById('osd-group').innerText = ch.g;
         osd.style.display = 'block';
         clearTimeout(window.osdHide);
-        window.osdHide = setTimeout(() => osd.style.display = 'none', 4000);
+        window.osdHide = setTimeout(() => osd.style.display = 'none', 5000);
 
         try {
             await player.unload();
-            
-            // Cấu hình DRM cho Seenow/MyTV
             if (ch.i && ch.k) {
                 let drm = {};
                 drm[toHex(ch.i)] = toHex(ch.k);
@@ -321,26 +353,32 @@
             } else {
                 player.configure({ drm: { clearKeys: {} } });
             }
-
             await player.load(ch.u);
             video.play();
         } catch (e) {
-            // Nếu là link m3u8 đơn giản, dùng trình phát gốc của trình duyệt
             video.src = ch.u;
             video.play();
         }
         renderList(ch.u);
+        
+        // Cuộn danh sách đến kênh đang xem để người già dễ thấy
+        const activeItem = document.querySelector('.item.active');
+        if (activeItem) activeItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function changeChannel(step) {
+        playChannel(currentIdx + step);
     }
 
     function renderList(activeUrl = "") {
         const list = document.getElementById('channel-list');
         list.innerHTML = "";
-        allChannels.forEach(ch => {
+        allChannels.forEach((ch, index) => {
             if (curTab !== 'ALL' && ch.g !== curTab) return;
             const div = document.createElement('div');
             div.className = `item ${ch.u === activeUrl ? 'active' : ''}`;
-            div.innerHTML = `<img src="${ch.l}" onerror="this.src='https://via.placeholder.com/90x50?text=TV'"><span>${ch.n}</span>`;
-            div.onclick = () => playChannel(ch);
+            div.innerHTML = `<img src="${ch.l}" onerror="this.src='https://via.placeholder.com/100x55?text=TV'"><span>${ch.n}</span>`;
+            div.onclick = () => playChannel(index);
             list.appendChild(div);
         });
     }
@@ -349,3 +387,4 @@
 </script>
 </body>
 </html>
+
