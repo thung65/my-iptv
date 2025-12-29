@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>XEM TV</title>
+    <title>SAMSUNG TV FULL OPTION</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mux.js/6.0.1/mux.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
@@ -30,20 +30,19 @@
 <div class="tabs">
     <button class="active" onclick="setTab('ALL', this)">TẤT CẢ</button>
     <button onclick="setTab('VTV', this)">VTV</button>
-    <button onclick="setTab('THIẾT YẾU', this)">THIẾT YẾU</button>
+    <button onclick="setTab('SCTV', this)">SCTV</button>
     <button onclick="setTab('VTVCAB', this)">VTVCAB</button>
     <button onclick="setTab('HTV', this)">HTV/HTVC</button>
     <button onclick="setTab('ĐỊA PHƯƠNG', this)">ĐỊA PHƯƠNG</button>
-    <button onclick="setTab('SCTV', this)">SCTV</button>
     <button onclick="setTab('QUỐC TẾ', this)">QUỐC TẾ</button>
 </div>
 
 <div id="list"></div>
 
 <script>
+    const GITHUB_URL = "https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123";
     let video = document.getElementById('video'), player, allData = [], curTab = "ALL";
 
-    // Danh sách kênh đầy đủ của bạn
     const FIXED_CHANNELS = [
         // NHÓM VTV
         { n: "VTV1", u: "https://live.fptplay53.net/fnxch2/vtv1hd_abr.smil/chunklist_b4200000.m3u8", l: "https://vnepg.site/logos/1.png", g: "VTV" },
