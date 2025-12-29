@@ -3,75 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DVB-T2 DIGITAL TV - SAMSUNG</title>
+    <title>DVB-T2 SAMSUNG INTERNET</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
     <style>
-        :root { --dvb-blue: #004a99; --dvb-gold: #ffcc00; --dvb-dark: #050505; }
-        body { margin: 0; background: #000; color: #fff; font-family: "Segoe UI", sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        :root { --dvb-blue: #003366; --dvb-gold: #ffcc00; --dvb-dark: #000; --dvb-gray: #1a1a1a; }
+        body { margin: 0; background: #000; color: #fff; font-family: sans-serif; height: 100vh; display: flex; overflow: hidden; }
 
-        /* KHU VỰC VIDEO */
-        #video-box { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; }
-        video { width: 100%; height: 100%; outline: none; }
+        /* DANH SÁCH KÊNH BÊN TRÁI */
+        #side-menu { 
+            width: 300px; 
+            background: var(--dvb-gray); 
+            border-right: 2px solid var(--dvb-blue);
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+        }
 
-        /* THANH THÔNG TIN (INFO BAR) KIỂU DVB-T2 */
+        .tabs { 
+            background: var(--dvb-blue); 
+            display: flex; 
+            flex-wrap: wrap; 
+            padding: 5px; 
+            gap: 2px;
+        }
+        .tabs button { 
+            flex: 1 1 45%; padding: 8px 2px; border: none; background: rgba(255,255,255,0.1); 
+            color: #fff; font-size: 11px; cursor: pointer; border-radius: 2px;
+        }
+        .tabs button.active { background: var(--dvb-gold); color: #000; font-weight: bold; }
+
+        #list { flex: 1; overflow-y: auto; scroll-behavior: smooth; }
+        .item { 
+            display: flex; align-items: center; padding: 12px 10px; 
+            border-bottom: 1px solid #333; cursor: pointer;
+        }
+        .item.active { background: var(--dvb-blue); border-left: 5px solid var(--dvb-gold); }
+        .item .num { width: 35px; color: var(--dvb-gold); font-weight: bold; font-size: 14px; }
+        .item img { height: 25px; width: 40px; object-fit: contain; margin-right: 10px; background: #fff; padding: 2px; }
+        .item span { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* KHU VỰC VIDEO BÊN PHẢI */
+        #main-content { flex: 1; display: flex; flex-direction: column; position: relative; }
+        #video-box { width: 100%; aspect-ratio: 16/9; background: #000; position: relative; }
+        video { width: 100%; height: 100%; background: #000; }
+
+        /* INFO BAR HIỆN DƯỚI VIDEO */
         #info-bar { 
             position: absolute; bottom: 0; left: 0; right: 0; 
-            background: linear-gradient(to top, var(--dvb-blue), rgba(0,40,80,0.9)); 
-            padding: 15px 30px; border-top: 4px solid var(--dvb-gold); 
-            display: none; align-items: center; gap: 20px; z-index: 100; 
+            background: rgba(0, 51, 102, 0.9); 
+            padding: 15px; border-top: 3px solid var(--dvb-gold); 
+            display: none; align-items: center; gap: 15px; 
         }
-        #info-bar.show { display: flex; animation: slideUp 0.3s; }
-        .ch-num-osd { font-size: 45px; font-weight: bold; color: var(--dvb-gold); text-shadow: 2px 2px #000; }
-        .ch-name-osd { font-size: 26px; font-weight: bold; }
+        #info-bar.show { display: flex; animation: fadeIn 0.3s; }
+        .ch-num-osd { font-size: 32px; font-weight: bold; color: var(--dvb-gold); }
+        .ch-name-osd { font-size: 20px; font-weight: bold; }
 
-        /* THANH ÂM LƯỢNG (VOLUME) */
-        #vol-osd { 
-            position: absolute; top: 30px; right: 30px; 
-            background: rgba(0,0,0,0.8); padding: 10px 20px; 
-            border-radius: 10px; border: 1px solid var(--dvb-gold); 
-            display: none; flex-direction: column; align-items: center; z-index: 101;
-        }
-        #vol-osd.show { display: flex; }
-        .vol-bar { width: 8px; height: 150px; background: #333; position: relative; border-radius: 4px; }
-        .vol-fill { width: 100%; background: var(--dvb-gold); position: absolute; bottom: 0; border-radius: 4px; transition: height 0.1s; }
-
-        /* DANH SÁCH KÊNH (DẠNG MENU ĐẦU THU) */
-        .dvb-container { flex: 1; display: flex; flex-direction: column; background: var(--dvb-dark); overflow: hidden; }
-        .tabs { display: flex; background: var(--dvb-blue); padding: 5px; gap: 2px; }
-        .tabs button { 
-            flex: 1; padding: 12px 5px; border: none; background: transparent; 
-            color: #fff; font-size: 13px; font-weight: bold; cursor: pointer; text-transform: uppercase; 
-        }
-        .tabs button.active { background: var(--dvb-gold); color: #000; }
-
-        #list { flex: 1; overflow-y: auto; padding: 0; margin: 0; }
-        .item { 
-            display: flex; align-items: center; padding: 12px 20px; 
-            border-bottom: 1px solid #1a1a1a; cursor: pointer; 
-        }
-        .item.active { background: #1a3a5a; border-left: 8px solid var(--dvb-gold); }
-        .item .num { width: 50px; font-size: 18px; color: var(--dvb-gold); font-weight: bold; }
-        .item img { height: 28px; width: 45px; object-fit: contain; margin-right: 15px; background: #fff; padding: 2px; border-radius: 3px; }
-        .item span { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body>
-
-<div id="video-box">
-    <video id="video" autoplay playsinline></video>
-    
-    <div id="vol-osd">
-        <div class="vol-bar"><div id="vol-fill" class="vol-fill" style="height: 50%;"></div></div>
-        <span style="font-size: 12px; color: var(--dvb-gold); margin-top: 5px;">VOL</span>
-    </div>
-
-    <div id="info-bar">
-        <div class="ch-num-osd" id="info-num">001</div>
-        <div class="ch-name-osd" id="info-name">SAMSUNG TV</div>
-    </div>
-</div>
 
 <div class="dvb-container">
     <div class="tabs" id="tab-box">
@@ -85,6 +75,16 @@
         <button onclick="setTab('QUỐC TẾ', this)">QUỐC TẾ</button>
     </div>
     <div id="list"></div>
+</div>
+
+<div id="main-content">
+    <div id="video-box">
+        <video id="video" autoplay playsinline controls></video>
+        <div id="info-bar">
+            <div class="ch-num-osd" id="info-num">001</div>
+            <div class="ch-name-osd" id="info-name">SAMSUNG TV</div>
+        </div>
+    </div>
 </div>
 
 <script>
