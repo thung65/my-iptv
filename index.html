@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SAMSUNG TV - DVB EDITION</title>
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mux.js/6.0.1/mux.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
 
@@ -44,14 +45,14 @@
 
 <div id="left-sidebar">
     <div class="tabs-header">
-        <button class="active" onclick="setTab('ALL', this)">TẤT CẢ</button>
-        <button onclick="setTab('VTV', this)">VTV</button>
-        <button onclick="setTab('THIẾT YẾU', this)">THIẾT YẾU</button>
-        <button onclick="setTab('VTVCAB', this)">VTVCAB</button>
-        <button onclick="setTab('HTV', this)">HTV/HTVC</button>
-        <button onclick="setTab('ĐỊA PHƯƠNG', this)">ĐỊA PHƯƠNG</button>
-        <button onclick="setTab('SCTV', this)">SCTV</button>
-        <button onclick="setTab('QUỐC TẾ', this)">QUỐC TẾ</button>
+        <button class="active" onclick="changeTab('ALL', this)">TẤT CẢ</button>
+        <button onclick="changeTab('VTV', this)">VTV</button>
+        <button onclick="changeTab('THIẾT YẾU', this)">THIẾT YẾU</button>
+        <button onclick="changeTab('VTVCAB', this)">VTVCAB</button>
+        <button onclick="changeTab('HTV', this)">HTV</button>
+        <button onclick="changeTab('ĐỊA PHƯƠNG', this)">ĐỊA PHƯƠNG</button>
+        <button onclick="changeTab('SCTV', this)">SCTV</button>
+        <button onclick="changeTab('QUỐC TẾ', this)">QUỐC TẾ</button>
     </div>
     <div id="channel-list"></div>
 </div>
@@ -75,11 +76,8 @@
 
 <script>
     const GITHUB_URL = "https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123";
-    let video = document.getElementById('video'), player, allData = [], curIdx = 0, curTab = "ALL";
-    const infoBar = document.getElementById('info-bar');
-    const volOsd = document.getElementById('vol-osd');
+    let video = document.getElementById('video'), player, allData = [], curTab = "ALL";
 
-    // Dữ liệu kênh (Rút gọn để mẫu, bạn có thể copy đầy đủ từ code cũ của bạn vào đây)
     const FIXED_CHANNELS = [
         // NHÓM VTV
         { n: "VTV1", u: "https://live.fptplay53.net/fnxch2/vtv1hd_abr.smil/chunklist_b4200000.m3u8", l: "https://vnepg.site/logos/1.png", g: "VTV" },
@@ -263,7 +261,7 @@
         { n: "BBC CBEEBIES", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/cbb.smil/manifest.mpd", i: "zKc6AGtLOaWVIHzrXtnKCg", k: "uDPR9AwmHveIlvl+BvgM3A", l: "https://vnepg.site/logos/150.png", g: "QUỐC TẾ" },
         { n: "BBC LIFESTYLE", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/bbclifestyle.smil/manifest.mpd", i: "WLlJmG7RMpS8AbDzMKvFJw", k: "I+jF8v4gKQasLWVU2VJymQ", l: "https://vnepg.site/logos/149.png", g: "QUỐC TẾ" },
         { n: "FASHION TV", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/ftv.smil/manifest.mpd", i: "wdnyVwECNQi/pnN+OoxwAQ", k: "MMNhPpsG4PfMIBAU8xv12A", l: "https://vnepg.site/logos/165.png", g: "QUỐC TẾ" }
-    ];
+    ];    
 
     function toHex(val) {
         try { return Array.from(atob(val.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0).toString(16).padStart(2,'0')).join(''); } catch(e) { return val; }
