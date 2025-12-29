@@ -26,30 +26,6 @@
         .item.active { border-color: #ffcc00; background: #1a1a00; }
         .item img { height: 35px; max-width: 90%; object-fit: contain; display: block; margin: 0 auto 5px; }
         .item span { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; font-weight: bold; }
-
-        /* ĐÃ XÓA TẤT CẢ CÁC DIV THỪA Ở ĐÂY */
-    </style>
-</head>
-<body>
-
-<div id="video-box"><video id="video" controls autoplay playsinline></video></div>
-
-<div class="tabs">
-    <button class="active" onclick="setTab('ALL', this)">TẤT CẢ</button>
-    <button onclick="setTab('VTV', this)">VTV</button>
-    <button onclick="setTab('SCTV', this)">SCTV</button>
-    <button onclick="setTab('VTVCAB', this)">VTVCAB</button>
-    <button onclick="setTab('HTV', this)">HTV/HTVC</button>
-    <button onclick="setTab('ĐỊA PHƯƠNG', this)">ĐỊA PHƯƠNG</button>
-    <button onclick="setTab('QUỐC TẾ', this)">QUỐC TẾ</button>
-</div>
-
-<div id="list"></div>
-
-<script>
-    const GITHUB_URL = "https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123";
-    let video = document.getElementById('video'), player, allData = [], curTab = "ALL";
-
     const FIXED_CHANNELS = [
         // NHÓM VTV
         { n: "VTV1", u: "https://live.fptplay53.net/fnxch2/vtv1hd_abr.smil/chunklist_b4200000.m3u8", l: "https://vnepg.site/logos/1.png", g: "VTV" },
@@ -102,7 +78,7 @@
         { n: "HBO", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/hbo.smil/manifest.mpd", i: "Cd3+PWOGPK+ut50FRrCYqw", k: "PeDzjc8BSCff1b7Dh0PGog", l: "https://vnepg.site/logos/129.png", g: "QUỐC TẾ" },
         { n: "AXN", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/axn.smil/manifest.mpd", i: "nSn4fv3sPJ+rNo9ySmKtDg", k: "bxwJwDXqs2Mj1g0UVNs9IA", l: "https://vnepg.site/logos/163.png", g: "QUỐC TẾ" },
         { n: "CINEMAX", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/max.smil/manifest.mpd", i: "rLTCNHEGMyetxzLig8CEfw", k: "6YaPX0c9D9hpnt5I1THCsA", l: "https://vnepg.site/logos/130.png", g: "QUỐC TẾ" }
-        { n: "KIX", u: "https://live.fptplay53.net/fnxhd2/kixhd_vhls.smil/chunklist_b5000000.m3u8", l: "https://vnepg.site/logos/167.png", g: "QUỐC TẾ" },
+                { n: "KIX", u: "https://live.fptplay53.net/fnxhd2/kixhd_vhls.smil/chunklist_b5000000.m3u8", l: "https://vnepg.site/logos/167.png", g: "QUỐC TẾ" },
         { n: "CINEMAWORLD", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/cinemaworld.smil/manifest.mpd", i: "7nkVVk10OdCb01Vv/MyHpA", k: "s14Sp1pCpvkYRyOpD/QtnA", l: "https://vnepg.site/logos/164.png", g: "QUỐC TẾ" },
         { n: "WARNER TV", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/wtv.smil/manifest.mpd", i: "CG0JpAv/OgCqbdTbr5wTsg", k: "NPGQjP4uBe4GAEbUDxSuyQ", l: "https://vnepg.site/logos/169.png", g: "QUỐC TẾ" },
         { n: "DISCOVERY", u: "https://s7770.cdn.mytvnet.vn/pkg20/live_dzones/dsc.smil/manifest.mpd", i: "60Fg6lU6Mh2JlVPk55b+wg", k: "vqWgcVfgxNF7Eas5lRf5Ug", l: "https://vnepg.site/logos/144.png", g: "QUỐC TẾ" },
@@ -121,6 +97,31 @@
         { n: "BBC LIFESTYLE", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/bbclifestyle.smil/manifest.mpd", i: "WLlJmG7RMpS8AbDzMKvFJw", k: "I+jF8v4gKQasLWVU2VJymQ", l: "https://vnepg.site/logos/149.png", g: "QUỐC TẾ" },
         { n: "FASHION TV", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/ftv.smil/manifest.mpd", i: "wdnyVwECNQi/pnN+OoxwAQ", k: "MMNhPpsG4PfMIBAU8xv12A", l: "https://vnepg.site/logos/165.png", g: "QUỐC TẾ" }
     ];
+
+        /* ĐÃ XÓA TẤT CẢ CÁC DIV THỪA Ở ĐÂY */
+    </style>
+</head>
+<body>
+
+<div id="video-box"><video id="video" controls autoplay playsinline></video></div>
+
+<div class="tabs">
+    <button class="active" onclick="setTab('ALL', this)">TẤT CẢ</button>
+    <button onclick="setTab('VTV', this)">VTV</button>
+    <button onclick="setTab('SCTV', this)">SCTV</button>
+    <button onclick="setTab('VTVCAB', this)">VTVCAB</button>
+    <button onclick="setTab('HTV', this)">HTV/HTVC</button>
+    <button onclick="setTab('ĐỊA PHƯƠNG', this)">ĐỊA PHƯƠNG</button>
+    <button onclick="setTab('QUỐC TẾ', this)">QUỐC TẾ</button>
+</div>
+
+<div id="list"></div>
+
+<script>
+    const GITHUB_URL = "https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123";
+    let video = document.getElementById('video'), player, allData = [], curTab = "ALL";
+
+    const FIXED_CHANNELS = [
 
 
     function toHex(val) {
