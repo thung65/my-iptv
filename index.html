@@ -3,64 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DVB-T2 SAMSUNG INTERNET</title>
+    <title>DVB-T2 SAMSUNG PRO</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mux.js/6.0.1/mux.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
 
     <style>
-        :root { --dvb-blue: #003366; --dvb-gold: #ffcc00; --dvb-dark: #000; --dvb-gray: #1a1a1a; }
+        :root { --dvb-blue: #003366; --dvb-gold: #ffcc00; --dvb-dark: #000; }
         body { margin: 0; background: #000; color: #fff; font-family: sans-serif; height: 100vh; display: flex; overflow: hidden; }
 
         /* DANH SÁCH KÊNH BÊN TRÁI */
-        #side-menu { 
-            width: 300px; 
-            background: var(--dvb-gray); 
-            border-right: 2px solid var(--dvb-blue);
-            display: flex;
-            flex-direction: column;
-            z-index: 10;
-        }
-
-        .tabs { 
-            background: var(--dvb-blue); 
-            display: flex; 
-            flex-wrap: wrap; 
-            padding: 5px; 
-            gap: 2px;
-        }
-        .tabs button { 
-            flex: 1 1 45%; padding: 8px 2px; border: none; background: rgba(255,255,255,0.1); 
-            color: #fff; font-size: 11px; cursor: pointer; border-radius: 2px;
-        }
+        #side-menu { width: 280px; background: #111; border-right: 2px solid var(--dvb-blue); display: flex; flex-direction: column; }
+        .tabs { background: var(--dvb-blue); display: flex; flex-wrap: wrap; padding: 5px; gap: 2px; }
+        .tabs button { flex: 1 1 45%; padding: 8px 2px; border: none; background: rgba(255,255,255,0.1); color: #fff; font-size: 11px; cursor: pointer; }
         .tabs button.active { background: var(--dvb-gold); color: #000; font-weight: bold; }
-
-        #list { flex: 1; overflow-y: auto; scroll-behavior: smooth; }
-        .item { 
-            display: flex; align-items: center; padding: 12px 10px; 
-            border-bottom: 1px solid #333; cursor: pointer;
-        }
+        #list { flex: 1; overflow-y: auto; }
+        .item { display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #222; cursor: pointer; }
         .item.active { background: var(--dvb-blue); border-left: 5px solid var(--dvb-gold); }
-        .item .num { width: 35px; color: var(--dvb-gold); font-weight: bold; font-size: 14px; }
         .item img { height: 25px; width: 40px; object-fit: contain; margin-right: 10px; background: #fff; padding: 2px; }
-        .item span { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .item span { font-size: 13px; }
 
-        /* KHU VỰC VIDEO BÊN PHẢI */
-        #main-content { flex: 1; display: flex; flex-direction: column; position: relative; }
-        #video-box { width: 100%; aspect-ratio: 16/9; background: #000; position: relative; }
-        video { width: 100%; height: 100%; background: #000; }
+        /* VIDEO BÊN PHẢI */
+        #main-content { flex: 1; position: relative; display: flex; flex-direction: column; justify-content: center; background: #000; }
+        video { width: 100%; height: auto; max-height: 100%; }
 
-        /* INFO BAR HIỆN DƯỚI VIDEO */
-        #info-bar { 
-            position: absolute; bottom: 0; left: 0; right: 0; 
-            background: rgba(0, 51, 102, 0.9); 
-            padding: 15px; border-top: 3px solid var(--dvb-gold); 
-            display: none; align-items: center; gap: 15px; 
-        }
-        #info-bar.show { display: flex; animation: fadeIn 0.3s; }
-        .ch-num-osd { font-size: 32px; font-weight: bold; color: var(--dvb-gold); }
-        .ch-name-osd { font-size: 20px; font-weight: bold; }
+        /* NÚT ĐIỀU KHIỂN LÊN XUỐNG ẢO */
+        .remote-controls { position: absolute; right: 20px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 15px; z-index: 100; }
+        .btn-nav { width: 60px; height: 60px; background: rgba(0,0,0,0.7); border: 2px solid var(--dvb-gold); color: var(--dvb-gold); border-radius: 50%; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .btn-nav:active { background: var(--dvb-gold); color: #000; }
 
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        /* INFO BAR */
+        #info-bar { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0, 51, 102, 0.9); padding: 15px; border-top: 3px solid var(--dvb-gold); display: none; align-items: center; gap: 15px; z-index: 90; }
+        .ch-num-osd { font-size: 30px; font-weight: bold; color: var(--dvb-gold); }
     </style>
 </head>
 <body>
@@ -77,6 +50,20 @@
         <button onclick="setTab('QUỐC TẾ', this)">QUỐC TẾ</button>
     </div>
     <div id="list"></div>
+</div>
+
+<div id="main-content">
+    <video id="video" autoplay playsinline></video>
+    
+    <div class="remote-controls">
+        <button class="btn-nav" onclick="play(curIdx - 1)">▲</button>
+        <button class="btn-nav" onclick="play(curIdx + 1)">▼</button>
+    </div>
+
+    <div id="info-bar">
+        <div class="ch-num-osd" id="info-num">001</div>
+        <div id="info-name" style="font-size: 20px; font-weight: bold;">TÊN KÊNH</div>
+    </div>
 </div>
 
 <div id="main-content">
@@ -288,7 +275,15 @@
     async function init() {
         shaka.polyfill.installAll();
         player = new shaka.Player(video);
-        allData = FIXED_CHANNELS; // Bạn có thể thêm hàm fetch github vào đây
+
+        // QUAN TRỌNG: Cấu hình để vượt lỗi SCTV/Seenow trên Samsung Internet
+        player.getNetworkingEngine().registerRequestFilter((type, request) => {
+            if (type == shaka.net.NetworkingEngine.RequestType.LICENSE) {
+                // Sửa lỗi headers nếu cần cho server bản quyền
+            }
+        });
+
+        allData = CHANNELS;
         render();
         play(0);
     }
@@ -300,55 +295,41 @@
         const ch = allData[curIdx];
 
         await player.unload();
-        if (ch.i && ch.k) {
-            let drm = {}; drm[toHex(ch.i)] = toHex(ch.k);
-            player.configure({ drm: { clearKeys: drm } });
-        }
         
+        // Cấu hình DRM ClearKey chính xác
+        if (ch.i && ch.k) {
+            let drm = {};
+            drm[toHex(ch.i)] = toHex(ch.k);
+            player.configure({
+                drm: { clearKeys: drm },
+                streaming: { jumpLargeGaps: true } // Vượt qua các đoạn lỗi dữ liệu
+            });
+        }
+
         try {
             await player.load(ch.u);
             video.play();
         } catch (e) {
-            video.src = ch.u; video.play();
+            video.src = ch.u;
+            video.play().catch(()=>{});
         }
 
-        // Hiện Info Bar kiểu DVB-T2
+        // Hiện Info Bar
         document.getElementById('info-num').innerText = (curIdx + 1).toString().padStart(3, '0');
         document.getElementById('info-name').innerText = ch.n;
-        infoBar.classList.add('show');
+        const info = document.getElementById('info-bar');
+        info.style.display = 'flex';
         clearTimeout(window.infoT);
-        window.infoT = setTimeout(() => infoBar.classList.remove('show'), 4000);
+        window.infoT = setTimeout(() => info.style.display = 'none', 3000);
 
         render();
-        // Cuộn danh sách đến kênh đang chọn
-        const activeItem = document.querySelector('.item.active');
-        if(activeItem) activeItem.scrollIntoView({ block: "center" });
     }
 
-    // ĐIỀU KHIỂN BẰNG REMOTE SAMSUNG
+    // Phím cứng Remote
     window.addEventListener('keydown', (e) => {
-        switch(e.keyCode) {
-            case 38: // Phím Lên (Up) -> Kênh trước
-                play(curIdx - 1); break;
-            case 40: // Phím Xuống (Down) -> Kênh sau
-                play(curIdx + 1); break;
-            case 37: // Phím Trái (Left) -> Giảm Vol
-                changeVol(-0.1); break;
-            case 39: // Phím Phải (Right) -> Tăng Vol
-                changeVol(0.1); break;
-            case 13: // Phím Giữa (Enter/OK)
-                infoBar.classList.toggle('show'); break;
-        }
+        if (e.keyCode === 38) play(curIdx - 1);
+        if (e.keyCode === 40) play(curIdx + 1);
     });
-
-    function changeVol(step) {
-        let v = Math.min(1, Math.max(0, video.volume + step));
-        video.volume = v;
-        document.getElementById('vol-fill').style.height = (v * 100) + "%";
-        volOsd.classList.add('show');
-        clearTimeout(window.volT);
-        window.volT = setTimeout(() => volOsd.classList.remove('show'), 2000);
-    }
 
     function render() {
         const box = document.getElementById('list');
@@ -357,7 +338,7 @@
             if (curTab !== 'ALL' && ch.g !== curTab) return;
             const div = document.createElement('div');
             div.className = `item ${i === curIdx ? 'active' : ''}`;
-            div.innerHTML = `<div class="num">${(i + 1).toString().padStart(3, '0')}</div><img src="${ch.l}"><span>${ch.n}</span>`;
+            div.innerHTML = `<img src="${ch.l || 'https://via.placeholder.com/40'}" onerror="this.src='https://via.placeholder.com/40'"><span>${ch.n}</span>`;
             div.onclick = () => play(i);
             box.appendChild(div);
         });
@@ -370,8 +351,9 @@
         render();
     }
 
-    init();
+    window.onload = init;
 </script>
 </body>
 </html>
+
 
