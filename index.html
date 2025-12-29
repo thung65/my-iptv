@@ -12,31 +12,26 @@
         :root { --dvb-blue: #002d5e; --dvb-gold: #ffcc00; --dvb-gray: #121212; }
         body { margin: 0; background: #000; color: #fff; font-family: sans-serif; display: flex; height: 100vh; overflow: hidden; }
 
-        /* DANH SÁCH KÊNH BÊN TRÁI */
         #left-sidebar { width: 320px; background: var(--dvb-gray); border-right: 2px solid var(--dvb-blue); display: flex; flex-direction: column; }
         .tabs-header { background: var(--dvb-blue); display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 5px; }
-        .tabs-header button { padding: 10px; border: none; background: rgba(255,255,255,0.1); color: #fff; font-size: 12px; font-weight: bold; cursor: pointer; }
+        .tabs-header button { padding: 10px; border: none; background: rgba(255,255,255,0.1); color: #fff; font-size: 11px; font-weight: bold; cursor: pointer; text-transform: uppercase; }
         .tabs-header button.active { background: var(--dvb-gold); color: #000; }
         
         #channel-list { flex: 1; overflow-y: auto; scroll-behavior: smooth; }
-        .ch-item { display: flex; align-items: center; padding: 15px 10px; border-bottom: 1px solid #222; cursor: pointer; }
+        .ch-item { display: flex; align-items: center; padding: 12px 10px; border-bottom: 1px solid #222; cursor: pointer; }
         .ch-item.active { background: #1a3a5a; border-left: 6px solid var(--dvb-gold); }
-        .ch-item .ch-num { width: 40px; color: var(--dvb-gold); font-weight: bold; }
+        .ch-item .ch-num { width: 35px; color: var(--dvb-gold); font-weight: bold; font-size: 13px; }
         .ch-item img { height: 30px; width: 50px; object-fit: contain; margin-right: 12px; background: #fff; border-radius: 3px; }
-        .ch-item span { font-size: 14px; font-weight: 500; }
+        .ch-item span { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        /* VIDEO BÊN PHẢI */
         #right-container { flex: 1; position: relative; background: #000; display: flex; flex-direction: column; justify-content: center; }
         #video-wrapper { width: 100%; aspect-ratio: 16/9; background: #000; position: relative; }
-        video { width: 100%; height: 100%; }
+        video { width: 100%; height: 100%; outline: none; }
 
-        /* NÚT CHUYỂN KÊNH ẢO (Góc phải) */
         .nav-controls { position: absolute; right: 25px; bottom: 80px; display: flex; flex-direction: column; gap: 20px; z-index: 100; }
-        .btn-up-down { width: 70px; height: 70px; background: rgba(0,0,0,0.8); border: 3px solid var(--dvb-gold); color: var(--dvb-gold); border-radius: 50%; font-size: 30px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 15px rgba(0,0,0,0.5); }
-        .btn-up-down:active { background: var(--dvb-gold); color: #000; }
+        .btn-up-down { width: 60px; height: 60px; background: rgba(0,0,0,0.8); border: 3px solid var(--dvb-gold); color: var(--dvb-gold); border-radius: 50%; font-size: 25px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 
-        /* THANH THÔNG TIN */
-        #info-bar { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, var(--dvb-blue), transparent); padding: 20px; display: none; border-top: 4px solid var(--dvb-gold); z-index: 90; }
+        #info-bar { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0,45,94,0.9), transparent); padding: 20px; display: none; border-top: 4px solid var(--dvb-gold); z-index: 90; }
         .info-content { display: flex; align-items: center; gap: 20px; }
         .info-num { font-size: 40px; font-weight: bold; color: var(--dvb-gold); }
     </style>
@@ -75,9 +70,7 @@
 </div>
 
 <script>
-    const GITHUB_URL = "https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123";
-    let video = document.getElementById('video'), player, allData = [], curTab = "ALL";
-
+    // Dữ liệu kênh (Giữ nguyên danh sách của bạn)
     const FIXED_CHANNELS = [
         // NHÓM VTV
         { n: "VTV1", u: "https://live.fptplay53.net/fnxch2/vtv1hd_abr.smil/chunklist_b4200000.m3u8", l: "https://vnepg.site/logos/1.png", g: "VTV" },
@@ -261,35 +254,44 @@
         { n: "BBC CBEEBIES", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/cbb.smil/manifest.mpd", i: "zKc6AGtLOaWVIHzrXtnKCg", k: "uDPR9AwmHveIlvl+BvgM3A", l: "https://vnepg.site/logos/150.png", g: "QUỐC TẾ" },
         { n: "BBC LIFESTYLE", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/bbclifestyle.smil/manifest.mpd", i: "WLlJmG7RMpS8AbDzMKvFJw", k: "I+jF8v4gKQasLWVU2VJymQ", l: "https://vnepg.site/logos/149.png", g: "QUỐC TẾ" },
         { n: "FASHION TV", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/ftv.smil/manifest.mpd", i: "wdnyVwECNQi/pnN+OoxwAQ", k: "MMNhPpsG4PfMIBAU8xv12A", l: "https://vnepg.site/logos/165.png", g: "QUỐC TẾ" }
-    ];    
+    ];
+
+    let video = document.getElementById('video'), player, curIdx = 0, curTab = "ALL";
 
     function toHex(val) {
-        try { return Array.from(atob(val.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0).toString(16).padStart(2,'0')).join(''); } catch(e) { return val; }
+        try { 
+            const binary = atob(val.replace(/-/g, '+').replace(/_/g, '/'));
+            return Array.from(binary, c => c.charCodeAt(0).toString(16).padStart(2, '0')).join('');
+        } catch (e) { return val; }
     }
 
     async function initPlayer() {
         shaka.polyfill.installAll();
         player = new shaka.Player(video);
         
-        // Sửa lỗi treo video trên Samsung Internet
         player.configure({
-            streaming: { 
-                rebufferingGoal: 2, 
-                bufferingGoal: 5,
-                jumpLargeGaps: true 
-            }
+            streaming: { rebufferingGoal: 2, bufferingGoal: 5, jumpLargeGaps: true }
         });
 
-        allData = CHANNELS;
-        renderList();
+        initTabs();
         loadChannel(0);
     }
 
+    function initTabs() {
+        const container = document.getElementById('tabs-container');
+        const groups = [...new Set(FIXED_CHANNELS.map(c => c.g))].filter(g => g !== "QUỐC TẾ");
+        const finalTabs = ["ALL", ...groups, "QUỐC TẾ"];
+
+        container.innerHTML = finalTabs.map(tab => 
+            `<button class="${tab === 'ALL' ? 'active' : ''}" onclick="changeTab('${tab}', this)">${tab === 'ALL' ? 'TẤT CẢ' : tab}</button>`
+        ).join('');
+    }
+
     async function loadChannel(index) {
-        if (index < 0) index = allData.length - 1;
-        if (index >= allData.length) index = 0;
+        if (index < 0) index = FIXED_CHANNELS.length - 1;
+        if (index >= FIXED_CHANNELS.length) index = 0;
         curIdx = index;
-        const ch = allData[curIdx];
+        const ch = FIXED_CHANNELS[curIdx];
 
         await player.unload();
         
@@ -303,10 +305,9 @@
 
         try {
             await player.load(ch.u);
-            video.play().catch(() => {
-                console.log("Cần bấm nút Play thủ công do chính sách trình duyệt");
-            });
+            video.play().catch(() => {});
         } catch (e) {
+            // Fallback cho HLS nếu Shaka gặp khó khăn (tùy trình duyệt)
             video.src = ch.u;
             video.play().catch(() => {});
         }
@@ -315,29 +316,16 @@
         renderList();
     }
 
-    function jumpChannel(step) {
-        loadChannel(curIdx + step);
-    }
-
-    function showOSD(name, num) {
-        document.getElementById('osd-num').innerText = num.toString().padStart(3, '0');
-        document.getElementById('osd-name').innerText = name;
-        const bar = document.getElementById('info-bar');
-        bar.style.display = 'block';
-        clearTimeout(window.osdT);
-        window.osdT = setTimeout(() => bar.style.display = 'none', 4000);
-    }
-
     function renderList() {
         const list = document.getElementById('channel-list');
         list.innerHTML = "";
-        allData.forEach((ch, i) => {
+        FIXED_CHANNELS.forEach((ch, i) => {
             if (curTab !== 'ALL' && ch.g !== curTab) return;
             const div = document.createElement('div');
             div.className = `ch-item ${i === curIdx ? 'active' : ''}`;
             div.innerHTML = `
                 <div class="ch-num">${(i + 1).toString().padStart(3, '0')}</div>
-                <img src="${ch.l}" onerror="this.src='https://via.placeholder.com/50'">
+                <img src="${ch.l}" onerror="this.src='https://via.placeholder.com/50?text=TV'">
                 <span>${ch.n}</span>
             `;
             div.onclick = () => loadChannel(i);
@@ -355,7 +343,17 @@
         renderList();
     }
 
-    // Remote Control Keys
+    function jumpChannel(step) { loadChannel(curIdx + step); }
+
+    function showOSD(name, num) {
+        document.getElementById('osd-num').innerText = num.toString().padStart(3, '0');
+        document.getElementById('osd-name').innerText = name;
+        const bar = document.getElementById('info-bar');
+        bar.style.display = 'block';
+        clearTimeout(window.osdT);
+        window.osdT = setTimeout(() => bar.style.display = 'none', 4000);
+    }
+
     window.addEventListener('keydown', (e) => {
         if (e.keyCode === 38) jumpChannel(-1);
         if (e.keyCode === 40) jumpChannel(1);
@@ -365,3 +363,4 @@
 </script>
 </body>
 </html>
+
