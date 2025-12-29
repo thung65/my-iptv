@@ -9,31 +9,125 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
 
     <style>
-        :root { --dvb-blue: #002d5e; --dvb-gold: #ffcc00; --dvb-gray: #121212; }
-        body { margin: 0; background: #000; color: #fff; font-family: sans-serif; display: flex; height: 100vh; overflow: hidden; }
+        :root {
+            --bg-color: #0a0a0a;
+            --side-bg: #151515;
+            --accent: #0078ff; /* Màu xanh đặc trưng Samsung */
+            --text-main: #ffffff;
+            --text-dim: #aaaaaa;
+        }
 
-        #left-sidebar { width: 320px; background: var(--dvb-gray); border-right: 2px solid var(--dvb-blue); display: flex; flex-direction: column; }
-        .tabs-header { background: var(--dvb-blue); display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 5px; }
-        .tabs-header button { padding: 10px; border: none; background: rgba(255,255,255,0.1); color: #fff; font-size: 11px; font-weight: bold; cursor: pointer; text-transform: uppercase; }
-        .tabs-header button.active { background: var(--dvb-gold); color: #000; }
-        
-        #channel-list { flex: 1; overflow-y: auto; scroll-behavior: smooth; }
-        .ch-item { display: flex; align-items: center; padding: 12px 10px; border-bottom: 1px solid #222; cursor: pointer; }
-        .ch-item.active { background: #1a3a5a; border-left: 6px solid var(--dvb-gold); }
-        .ch-item .ch-num { width: 35px; color: var(--dvb-gold); font-weight: bold; font-size: 13px; }
-        .ch-item img { height: 30px; width: 50px; object-fit: contain; margin-right: 12px; background: #fff; border-radius: 3px; }
-        .ch-item span { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        body {
+            margin: 0;
+            background: #000;
+            color: var(--text-main);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
 
-        #right-container { flex: 1; position: relative; background: #000; display: flex; flex-direction: column; justify-content: center; }
-        #video-wrapper { width: 100%; aspect-ratio: 16/9; background: #000; position: relative; }
-        video { width: 100%; height: 100%; outline: none; }
+        /* SIDEBAR BÊN TRÁI - TỐI ƯU CHO TV */
+        #sidebar {
+            width: 380px;
+            background: var(--side-bg);
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #222;
+            z-index: 10;
+        }
 
-        .nav-controls { position: absolute; right: 25px; bottom: 80px; display: flex; flex-direction: column; gap: 20px; z-index: 100; }
-        .btn-up-down { width: 60px; height: 60px; background: rgba(0,0,0,0.8); border: 3px solid var(--dvb-gold); color: var(--dvb-gold); border-radius: 50%; font-size: 25px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .tabs-container {
+            padding: 20px 10px;
+            display: flex;
+            overflow-x: auto;
+            gap: 10px;
+            background: #111;
+        }
+        .tabs-container::-webkit-scrollbar { display: none; }
 
-        #info-bar { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0,45,94,0.9), transparent); padding: 20px; display: none; border-top: 4px solid var(--dvb-gold); z-index: 90; }
-        .info-content { display: flex; align-items: center; gap: 20px; }
-        .info-num { font-size: 40px; font-weight: bold; color: var(--dvb-gold); }
+        .tab-btn {
+            padding: 12px 25px;
+            background: #222;
+            border: 2px solid transparent;
+            border-radius: 30px;
+            color: var(--text-dim);
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .tab-btn.active {
+            background: var(--accent);
+            color: white;
+            border-color: #55aaff;
+        }
+
+        #channel-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+        }
+        #channel-list::-webkit-scrollbar { width: 6px; }
+        #channel-list::-webkit-scrollbar-thumb { background: #333; }
+
+        .ch-item {
+            display: flex;
+            align-items: center;
+            padding: 18px;
+            margin-bottom: 10px;
+            background: #202020;
+            border-radius: 12px;
+            border: 3px solid transparent;
+            transition: all 0.2s;
+        }
+        /* Hiệu ứng khi chọn hoặc dùng Remote di chuyển tới */
+        .ch-item:hover, .ch-item.active {
+            border-color: var(--accent);
+            background: #2a2a2a;
+            transform: scale(1.02);
+            box-shadow: 0 0 15px rgba(0, 120, 255, 0.4);
+        }
+
+        .ch-item img {
+            width: 60px; height: 40px;
+            object-fit: contain;
+            background: white;
+            border-radius: 6px;
+            margin-right: 20px;
+        }
+
+        .ch-info .ch-name { font-size: 18px; font-weight: bold; }
+        .ch-info .ch-grp { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
+
+        /* VÙNG VIDEO */
+        #main-view {
+            flex: 1;
+            position: relative;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        video { width: 100%; height: 100%; }
+
+        /* THÔNG BÁO KÊNH (OSD) */
+        #osd-overlay {
+            position: absolute;
+            bottom: 40px;
+            left: 40px;
+            background: rgba(0,0,0,0.85);
+            padding: 25px 40px;
+            border-left: 8px solid var(--accent);
+            border-radius: 0 15px 15px 0;
+            display: none;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(-50px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
     </style>
 </head>
 <body>
