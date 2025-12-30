@@ -2,61 +2,39 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TV ĐA QUỐC GIA - PRO</title>
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TV PRO MAX</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mux.js/6.0.1/mux.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
-
+    
     <style>
-        :root { --gold: #ffcc00; --bg: #000; --sidebar-bg: rgba(20, 20, 20, 0.98); }
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { margin: 0; background: var(--bg); color: #fff; font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-
-        /* THANH ĐIỀU KHIỂN TRÊN CÙNG - GOM TẤT CẢ NÚT */
-        #top-bar {
-            position: fixed; top: 0; left: 0; width: 100%; height: 85px;
-            background: rgba(0, 0, 0, 0.9); display: flex; align-items: center;
-            padding: 0 15px; gap: 10px; z-index: 10001; border-bottom: 3px solid #333;
-        }
-
-        #menu-toggle {
-            width: 65px; height: 65px; background: var(--gold); border: none; border-radius: 12px;
-            cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 5px;
-        }
-        .bar { width: 32px; height: 5px; background: #000; border-radius: 2px; }
-
-        .btn-top {
-            height: 65px; padding: 0 25px; font-size: 22px; font-weight: bold;
-            color: white; border: 4px solid #fff; border-radius: 12px; cursor: pointer;
-            display: flex; align-items: center;
-        }
+        :root { --gold: #ffcc00; }
+        body { margin: 0; background: #000; color: #fff; font-family: sans-serif; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
+        
+        /* THANH ĐIỀU KHIỂN TRÊN CÙNG */
+        #top-bar { position: fixed; top: 0; left: 0; width: 100%; height: 85px; background: rgba(0,0,0,0.95); display: flex; align-items: center; padding: 0 15px; gap: 15px; z-index: 10001; border-bottom: 3px solid #333; }
+        #menu-toggle { width: 65px; height: 65px; background: var(--gold); border: none; border-radius: 12px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 6px; cursor: pointer; }
+        .bar { width: 35px; height: 5px; background: #000; border-radius: 2px; }
+        .btn-top { height: 65px; padding: 0 30px; font-size: 22px; font-weight: bold; color: white; border: 4px solid #fff; border-radius: 12px; cursor: pointer; }
         .btn-prev { background: #d9534f; }
         .btn-next { background: #5cb85c; }
 
-        /* SIDEBAR */
-        #sidebar { 
-            position: fixed; left: -350px; top: 0; width: 340px; height: 100%; 
-            background: var(--sidebar-bg); z-index: 10002; transition: 0.4s;
-            border-right: 3px solid var(--gold); display: flex; flex-direction: column;
-        }
+        /* VÙNG VIDEO */
+        #main-view { flex: 1; padding-top: 85px; display: flex; align-items: center; justify-content: center; position: relative; }
+        video { width: 100%; height: 100%; background: #000; }
+
+        /* SIDEBAR DANH SÁCH KÊNH */
+        #sidebar { position: fixed; left: -360px; top: 0; width: 340px; height: 100%; background: #111; z-index: 10002; transition: 0.3s; border-right: 4px solid var(--gold); display: flex; flex-direction: column; }
         #sidebar.open { left: 0; }
         #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; z-index: 10001; }
-
-        /* VIDEO */
-        #main-view { flex: 1; background: #000; display: flex; align-items: center; justify-content: center; padding-top: 85px; position: relative; }
-        video { width: 100%; height: 100%; object-fit: contain; }
-
-        /* LIST KÊNH */
-        .tabs-header { display: grid; grid-template-columns: 1fr 1fr; background: #111; }
-        .tabs-header button { padding: 15px; background: #1a1a1a; color: #fff; border: 1px solid #333; font-weight: bold; }
+        
+        .tabs-header { display: grid; grid-template-columns: 1fr 1fr; }
+        .tabs-header button { padding: 15px; background: #222; color: #fff; border: 1px solid #333; font-weight: bold; cursor: pointer; }
         .tabs-header button.active { background: var(--gold); color: #000; }
         #channel-list { flex: 1; overflow-y: auto; padding: 10px; }
-        .item { display: flex; align-items: center; padding: 12px; background: #222; margin-bottom: 8px; border-radius: 8px; border: 2px solid transparent; }
+        .item { display: flex; align-items: center; padding: 15px; background: #222; margin-bottom: 10px; border-radius: 10px; cursor: pointer; border: 2px solid transparent; }
         .item.active { border-color: var(--gold); background: #333; }
-        .item img { width: 75px; height: 42px; object-fit: contain; background: #fff; margin-right: 15px; border-radius: 4px; }
-
-        #osd { position: absolute; top: 100px; left: 20px; background: rgba(0,0,0,0.85); padding: 15px; border-left: 8px solid var(--gold); display: none; z-index: 100; pointer-events: none; }
+        .item img { width: 80px; height: 45px; object-fit: contain; background: #fff; margin-right: 15px; border-radius: 5px; }
     </style>
 </head>
 <body>
@@ -70,23 +48,17 @@
 <div id="overlay" onclick="toggleMenu()"></div>
 
 <div id="sidebar">
-    <div style="padding: 20px; background: var(--gold); color: #000; font-weight: bold; text-align: center; font-size: 18px;">DANH SÁCH KÊNH</div>
+    <div style="padding: 25px; background: var(--gold); color: #000; font-weight: bold; text-align: center; font-size: 22px;">DANH SÁCH KÊNH</div>
     <div class="tabs-header" id="tabs-box"></div>
     <div id="channel-list"></div>
 </div>
 
 <div id="main-view">
     <video id="video" autoplay playsinline controls></video>
-    <div id="osd">
-        <div id="osd-name" style="font-size: 28px; font-weight: bold;"></div>
-        <div id="osd-group" style="font-size: 16px; color: var(--gold);"></div>
-    </div>
 </div>
 
 <script>
-    const GITHUB_URL = "https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123";
-    const PROXY = "https://api.allorigins.win/raw?url="; // Proxy giúp chạy link http trên https
-
+    // Danh sách kênh sắp xếp: ALL đầu, INTERNATIONAL cuối
     const FIXED_CHANNELS = [
         // NHÓM VTV
         { n: "VTV1", u: "https://live.fptplay53.net/fnxch2/vtv1hd_abr.smil/chunklist_b4200000.m3u8", l: "https://vnepg.site/logos/1.png", g: "VTV" },
@@ -156,7 +128,7 @@
         { n: "QTV1 HD _ TH QUẢNG NINH", u: "https://live.fptplay53.net/fnxsd1/quangninh1_hls.smil/chunklist_b2500000.m3u8", l: "https://vnepg.site/logos/120.png", g: "ĐỊA PHƯƠNG" },
         { n: "QTV3 HD _ TH QUẢNG NINH", u: "https://live.fptplay53.net/fnxsd1/quangninh3_hls.smil/chunklist_b2500000.m3u8", l: "https://vnepg.site/logos/121.png", g: "ĐỊA PHƯƠNG" },
         { n: "BTV _ TH BẮC NINH", u: "https://live.fptplay53.net/fnxsd1/bacninh01_hls.smil/chunklist_b2500000.m3u8", l: "https://vnepg.site/logos/82.png", g: "ĐỊA PHƯƠNG" },
-        { n: "HITV _ TH HÀ NỘI", u: "https://toiyeuvietnam.dpdns.org/CoBan/hitv/TuyetDoiKhongKinhDoanh.m3u8", l: "https://vnepg.site/logos/73.png", g: "ĐỊA PHƯƠNG" },
+        { n: "HITV _ TH HÀ NỘI", u: "https://freem3u.xyz/api/live/play.m3u8?vid=32", l: "https://vnepg.site/logos/73.png", g: "ĐỊA PHƯƠNG" },
         { n: "H1 HD _ TH HÀ NỘI", u: "https://live.fptplay53.net/fnxhd2/hanoitv1_vhls.smil/chunklist_b5000000.m3u8", l: "https://vnepg.site/logos/100.png", g: "ĐỊA PHƯƠNG" },
         { n: "H2 HD _ TH HÀ NỘI", u: "https://cloudstreamhntv.tek4tv.vn/live/HN2/chunklist_b5000000.m3u8", l: "https://vnepg.site/logos/101.png", g: "ĐỊA PHƯƠNG" },
         { n: "H2 UHD _ TH HÀ NỘI", u: "https://live.fptplay53.net/fnxch2/hntv2_abr.smil/chunklist_b6000000.m3u8", l: "https://vnepg.site/logos/101.png", g: "ĐỊA PHƯƠNG" },
@@ -202,14 +174,14 @@
         { n: "THVL5 HD - VĨNH LONG 5", u: "https://live.fptplay53.net/epzsd1/vinhlong5_vhls.smil/chunklist_b5000000.m3u8", l: "https://vnepg.site/logos/175.png", g: "ĐỊA PHƯƠNG" },
         
         // NHÓM SCTV
-        { n: "SCTV1", u: "http://akasaijr.myftp.org:21585/sctv1/index.m3u8", l: "https://vnepg.site/logos/46.png", g: "SCTV" },
+        { n: "SCTV1", u: "https://liveh12.seenow.vn/hls/SCTV1/03.m3u8", l: "https://vnepg.site/logos/46.png", g: "SCTV" },
         { n: "SCTV2", u: "https://liveh12.seenow.vn/hls/SCTV2/03.m3u8", l: "https://vnepg.site/logos/47.png", g: "SCTV" },
         { n: "SCTV3", u: "https://liveh34.seenow.vn/hls/SCTV3/03.m3u8", l: "https://vnepg.site/logos/48.png", g: "SCTV" },
         { n: "SCTV4", u: "https://liveh12.seenow.vn/hls/SCTV4/03.m3u8", l: "https://vnepg.site/logos/49.png", g: "SCTV" },
         { n: "SCTV6", u: "https://live.fptplay53.net/epzhd2/film360_vhls.smil/chunklist_b5000000.m3u8", l: "https://vnepg.site/logos/50.png", g: "SCTV" },
         { n: "SCTV7", u: "https://liveh34.seenow.vn/hls/SCTV7/03.m3u8", l: "https://vnepg.site/logos/51.png", g: "SCTV" },
         { n: "SCTV8", u: "https://liveh34.seenow.vn/hls/SCTV8/03.m3u8", l: "https://vnepg.site/logos/52.png", g: "SCTV" },
-        { n: "SCTV9", u: "http://akasaijr.myftp.org:21585/sctv9/index.m3u8", l: "https://vnepg.site/logos/53.png", g: "SCTV" },
+        { n: "SCTV9", u: "https://livecdn.seenow.vn/mean/SCTV9/manifest.mpd", i: "22a9a9a63d2746df9f90c184c596105a", k: "2d9d24caeaea42f8b44e413fe04f0e5c", l: "https://vnepg.site/logos/53.png", g: "SCTV" },
         { n: "SCTV11", u: "https://liveh34.seenow.vn/hls/SCTV11/03.m3u8", l: "https://vnepg.site/logos/54.png", g: "SCTV" },
         { n: "SCTV12", u: "https://liveh34.seenow.vn/hls/SCTV12/03.m3u8", l: "https://vnepg.site/logos/55.png", g: "SCTV" },
         { n: "SCTV13", u: "https://liveh34.seenow.vn/hls/SCTV13/03.m3u8", l: "https://vnepg.site/logos/56.png", g: "SCTV" },
@@ -217,13 +189,13 @@
         { n: "SCTV15", u: "https://livecdn.seenow.vn/mean/SCTV15HD/manifest.mpd", i: "a7c942778e874d43be92b8d0a0cd11b4", k: "6d54358306571658ffdb952c6560688b", l: "https://vnepg.site/logos/58.png", g: "SCTV" },
         { n: "SCTV16", u: "https://liveh34.seenow.vn/hls/SCTV16/04.m3u8", l: "https://vnepg.site/logos/59.png", g: "SCTV" },
         { n: "SCTV17", u: "https://livecdn.seenow.vn/mean/SCTV17/manifest.mpd", i: "a7c942778e874d43be92b8d0a0cd11b4", k: "6d54358306571658ffdb952c6560688b", l: "https://vnepg.site/logos/60.png", g: "SCTV" },
-        { n: "SCTV18", u: "http://akasaijr.myftp.org:21585/vtc1/index.m3u8", l: "https://vnepg.site/logos/61.png", g: "SCTV" },
+        { n: "SCTV18", u: "https://liveh34.seenow.vn/hls/SCTV18/03.m3u8", l: "https://vnepg.site/logos/61.png", g: "SCTV" },
         { n: "SCTV19", u: "https://liveh34.seenow.vn/hls/SCTV19/03.m3u8", l: "https://vnepg.site/logos/62.png", g: "SCTV" },
         { n: "SCTV20", u: "https://liveh34.seenow.vn/hls/SCTV20/03.m3u8", l: "https://vnepg.site/logos/63.png", g: "SCTV" },
         { n: "SCTV21", u: "https://liveh34.seenow.vn/hls/SCTV21/03.m3u8", l: "https://vnepg.site/logos/64.png", g: "SCTV" },
-        { n: "SCTV22", u: "https://liveh34.seenow.vn/hls/SCTV22/04.m3u8", l: "https://vnepg.site/logos/65.png", g: "SCTV" },
-        { n: "SCTV PHIM TỔNG HỢP", u: "http://akasaijr.myftp.org:21585/sctvpth/index.m3u8", l: "https://vnepg.site/logos/170.png", g: "SCTV" },
-        
+        { n: "SCTV22", u: "https://liveh34.vtvprime.vn/hls/SCTV22/04.m3u8", l: "https://vnepg.site/logos/65.png", g: "SCTV" },
+        { n: "SCTV PHIM TỔNG HỢP", u: "https://liveh12.seenow.vn/hls/SCTVPHIM/03.m3u8", l: "https://vnepg.site/logos/170.png", g: "SCTV" },
+
         // NHÓM QUỐC TẾ
         { n: "ASIAN FOOD NETWORK", u: "https://live.fptplay53.net/fnxhd2/afchd_vhls.smil/chunklist.m3u8", l: "https://vnepg.site/logos/172.png", g: "QUỐC TẾ" },
         { n: "ARIRANG", u: "https://live.fptplay53.net/fnxhd2/arirang_hls.smil/chunklist.m3u8", l: "https://vnepg.site/logos/152.png", g: "QUỐC TẾ" },
@@ -272,8 +244,8 @@
         { n: "FASHION TV", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/ftv.smil/manifest.mpd", i: "wdnyVwECNQi/pnN+OoxwAQ", k: "MMNhPpsG4PfMIBAU8xv12A", l: "https://vnepg.site/logos/165.png", g: "QUỐC TẾ" }
     ];
 
-    let player, video = document.getElementById('video'), allChannels = [], currentIdx = 0, curTab = "ALL";
-    const GROUP_ORDER = ["ALL", "VTV", "THIẾT YẾU", "VTVCAB", "HTV", "SCTV", "ĐỊA PHƯƠNG", "INTERNATIONAL"];
+    let player, video = document.getElementById('video'), currentIdx = 0, curTab = "ALL";
+    const GROUP_ORDER = ["ALL", "VTV", "THIẾT YẾU", "VTVCAB", "HTV", "SCTV", "QUỐC TẾ"];
 
     function toggleMenu() {
         const sb = document.getElementById('sidebar');
@@ -286,6 +258,7 @@
         shaka.polyfill.installAll();
         player = new shaka.Player(video);
         
+        // Tạo các nút phân loại (Tabs)
         const tabsBox = document.getElementById('tabs-box');
         GROUP_ORDER.forEach(g => {
             const btn = document.createElement('button');
@@ -299,60 +272,33 @@
             };
             tabsBox.appendChild(btn);
         });
-
-        try {
-            const res = await fetch(GITHUB_URL);
-            const text = await res.text();
-            let ext = [], temp = null;
-            text.split('\n').forEach(l => {
-                l = l.trim();
-                if (l.startsWith('#EXTINF')) {
-                    const n = l.split(',')[1] || "";
-                    let g = n.includes("SCTV") ? "SCTV" : "ĐỊA PHƯƠNG";
-                    temp = { n, u: "", l: l.match(/tvg-logo="([^"]+)"/i)?.[1] || "", g };
-                } else if (l.startsWith('http') && temp) {
-                    temp.u = l; ext.push(temp); temp = null;
-                }
-            });
-            allChannels = [...FIXED_CHANNELS, ...ext];
-        } catch(e) { allChannels = FIXED_CHANNELS; }
         
         renderList();
-        if(allChannels.length > 0) playChannel(0);
+        playChannel(0);
     }
 
     async function playChannel(idx) {
-        if (idx < 0) idx = allChannels.length - 1;
-        if (idx >= allChannels.length) idx = 0;
+        if (idx < 0) idx = CHANNELS.length - 1;
+        if (idx >= CHANNELS.length) idx = 0;
         currentIdx = idx;
-        const ch = allChannels[currentIdx];
-
-        document.getElementById('osd-name').innerText = ch.n;
-        document.getElementById('osd-group').innerText = ch.g;
-        document.getElementById('osd').style.display = 'block';
-        clearTimeout(window.osdHide);
-        window.osdHide = setTimeout(() => document.getElementById('osd').style.display = 'none', 3000);
-
-        let streamUrl = ch.u;
-        // Xử lý link HTTP bằng Proxy
-        if (streamUrl.startsWith("http://")) {
-            streamUrl = PROXY + encodeURIComponent(streamUrl);
-        }
+        const ch = CHANNELS[currentIdx];
 
         try {
             await player.unload();
-            if (ch.i && ch.k) {
-                let drm = {};
-                drm[Array.from(atob(ch.i.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0).toString(16).padStart(2, '0')).join('')] = 
-                Array.from(atob(ch.k.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0).toString(16).padStart(2, '0')).join('');
-                player.configure({ drm: { clearKeys: drm } });
+            // CƠ CHẾ LAI (HYBRID):
+            // Nếu link là HTTP, dùng trình phát gốc của trình duyệt để không bị lỗi bảo mật
+            if (ch.u.startsWith("http://")) {
+                video.src = ch.u;
             } else {
-                player.configure({ drm: { clearKeys: {} } });
+                // Nếu là HTTPS, dùng Shaka Player để phát các link có khóa (FPT/VTVCab)
+                await player.load(ch.u);
             }
-            await player.load(streamUrl);
-        } catch (e) { video.src = streamUrl; }
+            video.play();
+        } catch (e) { 
+            video.src = ch.u; // Phương án dự phòng cuối cùng
+        }
         
-        video.play().catch(() => {});
+        renderList();
         if (document.getElementById('sidebar').classList.contains('open')) toggleMenu();
     }
 
@@ -361,7 +307,7 @@
     function renderList() {
         const list = document.getElementById('channel-list');
         list.innerHTML = "";
-        allChannels.forEach((ch, index) => {
+        CHANNELS.forEach((ch, index) => {
             if (curTab !== 'ALL' && ch.g !== curTab) return;
             const div = document.createElement('div');
             div.className = `item ${index === currentIdx ? 'active' : ''}`;
@@ -375,4 +321,3 @@
 </script>
 </body>
 </html>
-
