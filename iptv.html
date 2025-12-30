@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TV SMART PLAYER</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
+
+    <style>
+        :root { --main: #ffcc00; --bg: #000; }
+        body { margin: 0; background: var(--bg); color: #fff; font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        
+        /* VIDEO BOX */
+        #video-box { width: 100%; aspect-ratio: 16/9; background: #000; border-bottom: 2px solid var(--main); }
+        video { width: 100%; height: 100%; }
+
+        /* THANH PHÂN LOẠI */
+        .tabs { display: flex; overflow-x: auto; background: #111; padding: 10px; gap: 8px; border-bottom: 1px solid #333; }
+        .tabs button { padding: 10px 20px; border: none; background: #222; color: #999; font-weight: bold; cursor: pointer; border-radius: 5px; white-space: nowrap; }
+        .tabs button.active { background: var(--main); color: #000; }
+
+        /* DANH SÁCH KÊNH */
+        #list { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; padding: 12px; overflow-y: auto; flex: 1; }
+        .item { background: #111; padding: 10px 5px; text-align: center; border: 1px solid #222; border-radius: 8px; cursor: pointer; }
+        .item.active { border-color: var(--main); background: #1a1a00; }
+        .item img { height: 40px; max-width: 90%; object-fit: contain; margin-bottom: 5px; background: #fff; border-radius: 3px; }
+        .item span { font-size: 11px; font-weight: bold; display: block; }
+    </style>
+</head>
+<body>
+
+<div id="video-box"><video id="video" controls autoplay playsinline></video></div>
+
+<div class="tabs">
+    <button class="active" onclick="setTab('ALL', this)">TẤT CẢ</button>
+    <button onclick="setTab('VTV', this)">VTV</button>
+    <button onclick="setTab('SCTV', this)">SCTV</button>
+    <button onclick="setTab('VTVCAB', this)">VTVCAB</button>
+    <button onclick="setTab('HTV', this)">HTV</button>
+    <button onclick="setTab('INTERNATIONAL', this)">QUỐC TẾ</button>
+</div>
+
+<div id="list"></div>
+
+<script>
+    const video = document.getElementById('video');
+    let player, allData = [], curTab = "ALL";
+
+    // Danh sách kênh thủ công để đảm bảo SCTV1 luôn chạy
+    const CHANNELS = [
+        { n: "VTV1 HD", u: "https://live.fptplay53.net/fnxch2/vtv1hd_abr.smil/chunklist_b4200000.m3u8", l: "https://vnepg.site/logos/1.png", g: "VTV" },
+        { n: "SCTV1 (HTTP)", u: "http://akasaijr.myftp.org:21585/sctv1/index.m3u8", l: "https://vnepg.site/logos/51.png", g: "SCTV" },
+        { n: "SCTV9 HD", u: "https://livecdn.seenow.vn/mean/SCTV9/manifest.mpd", i: "22a9a9a63d2746df9f90c184c596105a", k: "2d9d24caeaea42f8b44e413fe04f0e5c", l: "https://vnepg.site/logos/53.png", g: "SCTV" },
+        { n: "CNN", u: "https://cnn-cnninternational-1-de.samsung.wurl.com/manifest/playlist.m3u8", l: "https://upload.wikimedia.org/wikipedia/commons/b/b1/CNN.svg", g: "INTERNATIONAL" }
+    ];
+
+    function toHex(v) {
+        try { return Array.from(atob(v.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0).toString(16).padStart(2,'0')).join(''); }
+        catch(e) { return v; }
+    }
+
+    async function init() {
+        shaka.polyfill.installAll();
+        player = new shaka.Player(video);
+        allData = CHANNELS;
+        render();
+        play(allData[0]);
+    }
+
+    async function play(ch) {
+        await player.unload();
+        
+        // GIẢI PHÁP CHO HTTP:
+        // Nếu link là http, ta không dùng Shaka Player (vì nó sẽ chặn). 
+        // Ta dùng trình phát gốc của Tivi.
+        if (ch.u.startsWith("http://")) {
+            video.src = ch.u;
+            video.load();
+        } else {
+            // Nếu là https (VTV/DRM), dùng Shaka Player
+            if (ch.i && ch.k) {
+                let keys = {}; keys[toHex(ch.i)] = toHex(ch.k);
+                player.configure({ drm: { clearKeys: keys } });
+            } else {
+                player.configure({ drm: { clearKeys: {} } });
+            }
+            try { await player.load(ch.u); } 
+            catch(e) { video.src = ch.u; }
+        }
+        video.play().catch(() => {});
+        render(ch.u);
+    }
+
+    function render(activeUrl = "") {
+        const box = document.getElementById('list');
+        box.innerHTML = "";
+        allData.forEach(ch => {
+            if (curTab !== 'ALL' && ch.g !== curTab) return;
+            const div = document.createElement('div');
+            div.className = `item ${ch.u === activeUrl ? 'active' : ''}`;
+            div.innerHTML = `<img src="${ch.l}"><span>${ch.n}</span>`;
+            div.onclick = () => play(ch);
+            box.appendChild(div);
+        });
+    }
+
+    function setTab(t, btn) {
+        curTab = t;
+        document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        render();
+    }
+
+    init();
+</script>
+</body>
+</html>
