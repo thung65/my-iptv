@@ -3,74 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TV PRO - KHÔNG CHE NÚT</title>
+    <title>SAMSUNG TV PRO - FIXED REMOTE</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mux.js/6.0.1/mux.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
 
     <style>
         :root { --gold: #ffcc00; --bg: #000; --sidebar-bg: #111; }
+        * { box-sizing: border-box; }
         body { margin: 0; background: var(--bg); color: #fff; font-family: 'Segoe UI', sans-serif; display: flex; height: 100vh; overflow: hidden; }
 
         /* SIDEBAR */
-        #sidebar { width: 300px; background: var(--sidebar-bg); display: flex; flex-direction: column; border-right: 2px solid #333; }
+        #sidebar { width: 320px; background: var(--sidebar-bg); display: flex; flex-direction: column; border-right: 2px solid #333; z-index: 100; }
         .tabs-header { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; background: #222; }
-        .tabs-header button { padding: 15px 5px; border: none; background: #002244; color: #fff; font-weight: bold; cursor: pointer; }
+        .tabs-header button { padding: 15px 5px; border: none; background: #002244; color: #fff; font-weight: bold; cursor: pointer; font-size: 13px; }
         .tabs-header button.active { background: var(--gold); color: #000; }
         #channel-list { flex: 1; overflow-y: auto; padding: 10px; }
         .item { display: flex; align-items: center; background: #1a1a1a; margin-bottom: 8px; padding: 10px; border-radius: 8px; cursor: pointer; border: 2px solid transparent; }
-        .item.active { border-color: var(--gold); }
-        .item img { width: 70px; height: 40px; object-fit: contain; background: #fff; margin-right: 10px; }
+        .item.active { border-color: var(--gold); background: #222; }
+        .item img { width: 80px; height: 45px; object-fit: contain; background: #fff; border-radius: 4px; margin-right: 12px; }
+        .item span { font-size: 16px; font-weight: bold; }
 
-        /* VÙNG NỘI DUNG CHÍNH */
-        #main-view { flex: 1; display: flex; flex-direction: column; background: #000; }
+        /* VÙNG CHÍNH */
+        #main-view { flex: 1; display: flex; flex-direction: column; background: #000; position: relative; }
 
-        /* KHU VỰC VIDEO - CHIẾM HẾT PHẦN TRÊN */
-        #video-box { 
-            flex: 1; 
-            position: relative; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            overflow: hidden; 
+        /* KHU VỰC VIDEO - CỐ ĐỊNH KHOẢNG TRỐNG DƯỚI */
+        #video-container { 
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 140px; /* ĐẨY VIDEO LÊN TRÊN 140PX ĐỂ CHỪA CHỖ CHO NÚT */
             background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         video { 
             width: 100%; 
             height: 100%; 
-            /* Đảm bảo video không tràn xuống vùng nút */
-            object-fit: contain; 
+            object-fit: contain; /* Đảm bảo hình vuông hay chữ nhật đều không mất góc */
         }
 
-        /* KHU VỰC NÚT ĐIỀU KHIỂN - NẰM RIÊNG BIỆT Ở DƯỚI CÙNG */
-        #remote-footer { 
-            height: 130px; /* Độ cao cố định cho hàng nút */
-            background: #1a1a1a; 
+        /* KHU VỰC BỘ NÚT - NẰM CỐ ĐỊNH Ở ĐÁY MÀN HÌNH */
+        #remote-dock { 
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 140px; 
+            background: #111; 
             display: flex; 
             align-items: center; 
             justify-content: center; 
             gap: 40px; 
-            border-top: 4px solid #333;
-            padding: 0 20px;
+            border-top: 5px solid #333;
+            z-index: 999; /* Đảm bảo luôn nằm trên cùng */
         }
 
-        .btn-gia {
-            padding: 20px 45px;
-            font-size: 28px;
+        .btn-remote {
+            padding: 22px 55px;
+            font-size: 30px;
             font-weight: bold;
             color: white;
-            border: 5px solid #fff;
+            border: 6px solid #fff;
             border-radius: 20px;
             cursor: pointer;
-            box-shadow: 0 6px 15px rgba(0,0,0,0.5);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.8);
             text-transform: uppercase;
+            transition: 0.1s;
         }
         .btn-prev { background-color: #d9534f; }
         .btn-next { background-color: #5cb85c; }
-        .btn-gia:active { transform: translateY(4px); }
+        .btn-remote:active { transform: translateY(5px); box-shadow: none; }
 
-        /* OSD TÊN KÊNH */
-        #osd { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.8); padding: 20px; border-left: 10px solid var(--gold); display: none; z-index: 10; pointer-events: none; }
+        /* OSD Tên kênh */
+        #osd { position: absolute; top: 30px; left: 30px; background: rgba(0,0,0,0.85); padding: 20px 30px; border-left: 10px solid var(--gold); display: none; z-index: 1000; pointer-events: none; }
     </style>
 </head>
 <body>
@@ -81,24 +89,24 @@
 </div>
 
 <div id="main-view">
-    <div id="video-box">
+    <div id="video-container">
         <video id="video" autoplay playsinline controls></video>
         <div id="osd">
-            <div id="osd-name" style="font-size: 28px; font-weight: bold;"></div>
-            <div id="osd-group" style="font-size: 16px; color: var(--gold);"></div>
+            <div id="osd-name" style="font-size: 32px; font-weight: bold;"></div>
+            <div id="osd-group" style="font-size: 18px; color: var(--gold); margin-top: 5px;"></div>
         </div>
     </div>
 
-    <div id="remote-footer">
-        <button class="btn-gia btn-prev" onclick="changeChannel(-1)">◀ GIẢM KÊNH</button>
-        <button class="btn-gia btn-next" onclick="changeChannel(1)">TĂNG KÊNH ▶</button>
+    <div id="remote-dock">
+        <button class="btn-remote btn-prev" onclick="changeChannel(-1)">◀ GIẢM KÊNH</button>
+        <button class="btn-remote btn-next" onclick="changeChannel(1)">TĂNG KÊNH ▶</button>
     </div>
 </div>
 
 <script>
     const GITHUB_URL = "https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123";
     
-    // Dán danh sách FIXED của bạn vào đây
+    // DANH SÁCH FIXED - BẠN DÁN TIẾP VÀO ĐÂY
     const FIXED_CHANNELS = [
         // NHÓM VTV
         { n: "VTV1", u: "https://live.fptplay53.net/fnxch2/vtv1hd_abr.smil/chunklist_b4200000.m3u8", l: "https://vnepg.site/logos/1.png", g: "VTV" },
@@ -298,8 +306,8 @@
     async function init() {
         shaka.polyfill.installAll();
         player = new shaka.Player(video);
+        player.configure({ streaming: { bufferingGoal: 3 } });
 
-        // Tạo Tabs
         const tabsBox = document.getElementById('tabs-box');
         GROUP_ORDER.forEach(g => {
             const btn = document.createElement('button');
@@ -314,7 +322,6 @@
             tabsBox.appendChild(btn);
         });
 
-        // Load kênh
         try {
             const res = await fetch(GITHUB_URL);
             const text = await res.text();
@@ -345,12 +352,11 @@
         currentIdx = idx;
         const ch = allChannels[currentIdx];
 
-        const osd = document.getElementById('osd');
         document.getElementById('osd-name').innerText = ch.n;
         document.getElementById('osd-group').innerText = ch.g;
-        osd.style.display = 'block';
+        document.getElementById('osd').style.display = 'block';
         clearTimeout(window.osdHide);
-        window.osdHide = setTimeout(() => osd.style.display = 'none', 4000);
+        window.osdHide = setTimeout(() => document.getElementById('osd').style.display = 'none', 4000);
 
         try {
             await player.unload();
@@ -366,7 +372,6 @@
         video.play();
         renderList(ch.u);
         
-        // Tự động cuộn sidebar
         setTimeout(() => {
             const activeItem = document.querySelector('.item.active');
             if (activeItem) activeItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -384,13 +389,12 @@
             if (curTab !== 'ALL' && ch.g !== curTab) return;
             const div = document.createElement('div');
             div.className = `item ${ch.u === activeUrl ? 'active' : ''}`;
-            div.innerHTML = `<img src="${ch.l}" onerror="this.src='https://via.placeholder.com/70x40'"><span>${ch.n}</span>`;
+            div.innerHTML = `<img src="${ch.l}" onerror="this.src='https://via.placeholder.com/80x45'"><span>${ch.n}</span>`;
             div.onclick = () => playChannel(index);
             list.appendChild(div);
         });
     }
 
-    // Phím tắt bàn phím
     document.addEventListener('keydown', (e) => {
         if (e.key === 'ArrowUp') changeChannel(-1);
         if (e.key === 'ArrowDown') changeChannel(1);
