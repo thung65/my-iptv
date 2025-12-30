@@ -240,7 +240,7 @@
         player = new shaka.Player(video);
         player.configure({ streaming: { bufferingGoal: 8, rebufferingGoal: 2 } });
 
-        try
+        try {
             const r = await fetch(GITHUB_URL);
             const t = await r.text();
             let ext = [], cur = null;
