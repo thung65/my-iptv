@@ -54,62 +54,72 @@
         { n: "WOMAN", u: "https://livecdn.seenow.vn/livesnv2/WO/manifest.mpd", i: "a7c942778e874d43be92b8d0a0cd11b4", k: "6d54358306571658ffdb952c6560688b", l: "https://vnepg.site/logos/139.png", g: "QUỐC TẾ" }
     ];
 
-    async function start() {
-        shaka.polyfill.installAll();
-        player = new shaka.Player(video);
-        player.configure({ streaming: { bufferingGoal: 8, rebufferingGoal: 2 } });
-        player.getNetworkingEngine().registerRequestFilter((type, req) => {
-            req.headers['User-Agent'] = 'Mozilla/5.0 (SMART-TV; Tizen 6.0) Chrome/120.0.0.0 Safari/537.36';
-        });
+async function play(ch) {
+    if (!ch || !ch.u) return;
 
-        renderTabs();
-        await loadData();
-    }
+    // 1. DỌN DẸP CHIẾN TRƯỜNG (Cực kỳ quan trọng để không bị lặp hình)
+    try {
+        await player.unload(); // Buộc Shaka phải nhả thẻ video
+        video.pause();
+        video.removeAttribute('src'); // Xóa sạch link cũ
+        video.load(); // Reset thẻ video về trạng thái trống
+    } catch (e) {}
 
-    async function loadData() {
+    // 2. PHÂN LOẠI VÀ XỬ LÝ "MẠNH TAY"
+    
+    // TRƯỜNG HỢP A: LINK DRM (SEENOW, VTV PRIME...) -> DÙNG SHAKA
+    if (ch.u.includes('.mpd') || (ch.i && ch.k)) {
         try {
-            const r = await fetch(GITHUB_URL);
-            const t = await r.text();
-            let ext = [], cur = null;
-            t.split('\n').forEach(l => {
-                l = l.trim();
-                if (l.startsWith('#EXTINF')) {
-                    const n = l.split(',')[1] || "";
-                    let g = "ĐỊA PHƯƠNG";
-                    if (n.includes("VTVCAB")) g = "VTVCAB"; else if (n.includes("HTV")) g = "HTV"; else if (n.includes("SCTV")) g = "SCTV";
-                    cur = { n, u: "", l: l.match(/tvg-logo="([^"]+)"/i)?.[1] || "", g };
-                } else if (l.startsWith('http') && cur) { cur.u = l; ext.push(cur); cur = null; }
-            });
-            allData = [...FIXED_CHANNELS, ...ext].filter((v,i,a) => a.findIndex(x => x.u === v.u) === i);
-            render();
-            if(allData.length > 0) play(allData[0]);
-        } catch(e) { allData = FIXED_CHANNELS; render(); }
-    }
-
-    async function play(ch) {
-        document.querySelectorAll('.item').forEach(el => el.classList.toggle('active', el.dataset.url === ch.u));
-        try {
-            await player.unload();
-            if (ch.u.includes('.mpd') || (ch.i && ch.k)) {
-                if (ch.i && ch.k) {
-                    let drm = {}; drm[toHex(ch.i)] = toHex(ch.k);
-                    player.configure({ drm: { clearKeys: drm } });
+            let drm = {};
+            drm[toHex(ch.i)] = toHex(ch.k);
+            
+            player.configure({
+                drm: { clearKeys: drm },
+                manifest: { dash: { ignoreMinBufferTime: true } },
+                streaming: { 
+                    bufferingGoal: 5, // Giảm buffer để lên hình nhanh hơn
+                    failureRetries: 1 
                 }
-                await player.load(ch.u);
-                video.play();
-            } else { throw new Error("Native"); }
-        } catch (e) {
-            // CƠ CHẾ CHỐNG XOAY VÒNG: Reset hoàn toàn trước khi nạp link HTTP
-            await player.unload();
-            video.pause();
-            video.removeAttribute('src'); 
-            video.load(); 
-            setTimeout(() => {
-                video.src = ch.u;
-                video.play().catch(() => { video.load(); video.play(); });
-            }, 150);
+            });
+
+            await player.load(ch.u);
+            video.play();
+            console.log("Phát bằng Shaka (DRM)");
+        } catch (err) {
+            console.error("Shaka lỗi, thử nhảy sang Native...");
+            forceNative(ch.u);
         }
+    } 
+    // TRƯỜNG HỢP B: LINK HTTP/HTTPS THƯỜNG (M3U8, MP4...) -> DÙNG NATIVE
+    else {
+        forceNative(ch.u);
     }
+}
+
+// Hàm phụ trợ "Ép" Tivi phải phát (Trị lỗi xoay vòng HTTP)
+function forceNative(url) {
+    console.log("Đang ép phát Native: " + url);
+    
+    // Mẹo: Nếu web đang HTTPS mà link là HTTP, Tivi sẽ chặn. 
+    // Chúng ta thử xóa bớt tiền tố nếu cần hoặc để Tivi tự quyết định.
+    video.src = url;
+    
+    // Thiết lập Type chuẩn để Tivi không phải "đoán"
+    if (url.includes('m3u8')) {
+        video.type = 'application/x-mpegURL';
+    } else if (url.includes('mpd')) {
+        video.type = 'application/dash+xml';
+    }
+
+    // Delay một chút để Chip Tivi kịp load link mới
+    setTimeout(() => {
+        video.play().catch(e => {
+            console.warn("Tivi chặn tự động phát, đang thử chế độ Muted...");
+            video.muted = true;
+            video.play();
+        });
+    }, 200);
+}
 
     function renderTabs() {
         const bar = document.getElementById('tab-bar');
