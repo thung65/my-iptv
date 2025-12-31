@@ -2,95 +2,140 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>SAMSUNG TV - SCTV TỔNG HỢP</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
+    <title>SAMSUNG 4K PRO - SEENOW FIX</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
     <style>
+        * { box-sizing: border-box; -webkit-transform: translateZ(0); }
         body { margin: 0; background: #000; color: #fff; font-family: sans-serif; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
-        #video-box { width: 100%; aspect-ratio: 16/9; background: #000; border-bottom: 2px solid #ffcc00; }
-        video { width: 100%; height: 100%; outline: none; }
-        .tabs { display: flex; overflow-x: auto; background: #111; padding: 10px; gap: 8px; border-bottom: 1px solid #333; scrollbar-width: none; }
-        .tabs button { padding: 10px 18px; border: none; background: #222; color: #999; font-weight: bold; cursor: pointer; border-radius: 4px; white-space: nowrap; }
+        
+        /* Khung Video 4K */
+        #video-box { width: 100%; height: 50vh; background: #000; border-bottom: 3px solid #ffcc00; }
+        video { width: 100%; height: 100%; object-fit: contain; }
+
+        /* Tabs theo yêu cầu: Tất cả đầu, Quốc tế cuối */
+        .tabs { display: flex; overflow-x: auto; background: #111; padding: 12px; gap: 10px; flex-shrink: 0; scrollbar-width: none; }
+        .tabs::-webkit-scrollbar { display: none; }
+        .tabs button { 
+            padding: 12px 25px; border: none; background: #252525; color: #aaa; 
+            font-size: 15px; font-weight: bold; cursor: pointer; border-radius: 8px; 
+        }
         .tabs button.active { background: #ffcc00; color: #000; }
-        #list { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; padding: 12px; overflow-y: auto; flex: 1; }
-        .item { background: #111; padding: 12px 5px; text-align: center; border: 1px solid #222; border-radius: 6px; cursor: pointer; }
-        .item.active { border-color: #ffcc00; background: #1a1a00; }
-        .item img { height: 35px; max-width: 90%; object-fit: contain; display: block; margin: 0 auto 5px; background: #fff; }
-        .item span { font-size: 10px; font-weight: bold; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        /* Danh sách 169 kênh cực mượt */
+        #list { 
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); 
+            gap: 15px; padding: 20px; overflow-y: auto; flex: 1; 
+            content-visibility: auto; /* Chống lag cho list dài */
+        }
+        .item { 
+            background: #1a1a1a; padding: 15px 5px; text-align: center; 
+            border: 2px solid #333; border-radius: 12px; cursor: pointer; 
+            transition: 0.2s; outline: none;
+        }
+        .item:focus, .item:hover { border-color: #ffcc00; transform: scale(1.05); background: #222; }
+        .item.active { border-color: #ffcc00; background: #252500; }
+        .item img { height: 45px; max-width: 85%; object-fit: contain; margin-bottom: 8px; }
+        .item span { font-size: 12px; font-weight: bold; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     </style>
 </head>
 <body>
 
 <div id="video-box"><video id="video" controls autoplay playsinline></video></div>
-
-<div class="tabs">
-    <button class="active" onclick="setTab('ALL', this)">TẤT CẢ</button>
-    <button onclick="setTab('VTV', this)">VTV</button>
-    <button onclick="setTab('SCTV', this)">SCTV</button>
-    <button id="btn-intl" onclick="setTab('QUỐC TẾ', this)">QUỐC TẾ</button>
-</div>
-
+<div class="tabs" id="tab-bar"></div>
 <div id="list"></div>
 
 <script>
-    let video = document.getElementById('video'), shakaPlayer, allData = [], curTab = "ALL";
+    // Thứ tự nhóm: Tất cả ở đầu, Quốc tế ở cuối
+    const GROUPS = ["TẤT CẢ", "VTV", "SCTV", "VTVCAB", "HTV", "ĐỊA PHƯƠNG", "QUỐC TẾ"];
+    let player, video = document.getElementById('video'), curTab = "TẤT CẢ";
 
+    // Danh sách 169 kênh của bạn dán vào đây
     const CHANNELS = [
-        // NHÓM SCTV (HTTP - TRÌNH PHÁT NATIVE)
-        { n: "SCTV TỔNG HỢP", u: "http://akasaijr.myftp.org:21585/sctvtonghop/index.m3u8", l: "https://vnepg.site/logos/sctvtonghop.png", g: "SCTV" },
-        { n: "SCTV18 (Laliga)", u: "http://akasaijr.myftp.org:21585/vtc1/index.m3u8", l: "https://vnepg.site/logos/61.png", g: "SCTV" },
-        { n: "SCTV9 (TVB)", u: "http://akasaijr.myftp.org:21585/sctv9/index.m3u8", l: "https://vnepg.site/logos/53.png", g: "SCTV" },
-        { n: "SCTV1 (Hài)", u: "http://akasaijr.myftp.org:21585/sctv1/index.m3u8", l: "https://vnepg.site/logos/46.png", g: "SCTV" },
-        
-        // NHÓM VTV (HTTPS - TRÌNH PHÁT SHAKA)
-        { n: "VTV1 HD", u: "https://live.fptplay53.net/fnxch2/vtv1hd_abr.smil/chunklist_b4200000.m3u8", l: "https://vnepg.site/logos/1.png", g: "VTV" },
-        { n: "VTV3 HD", u: "https://live.fptplay53.net/fnxch2/vtv3hd_abr.smil/chunklist_b4200000.m3u8", l: "https://vnepg.site/logos/3.png", g: "VTV" },
-        
-        // NHÓM QUỐC TẾ (CUỐI CÙNG)
-        { n: "CNN", u: "https://cnn-cnninternational-1-de.samsung.wurl.com/manifest/playlist.m3u8", l: "https://vnepg.site/logos/156.png", g: "QUỐC TẾ" }
+        { n: "SCTV9 HD", u: "https://livecdn.seenow.vn/mean/SCTV9/manifest.mpd", i: "22a9a9a63d2746df9f90c184c596105a", k: "2d9d24caeaea42f8b44e413fe04f0e5c", l: "https://vnepg.site/logos/53.png", g: "SCTV" },
+        { n: "VTV3 HD", u: "https://livecdn.seenow.vn/mean/VTV3HD/manifest.mpd", i: "b45089e9334a41309e30a9161a06733c", k: "976d91c28c86326e100366479f676450", l: "https://vnepg.site/logos/3.png", g: "VTV" },
+        // ... Dán tiếp các kênh khác
     ];
 
     async function init() {
         shaka.polyfill.installAll();
-        shakaPlayer = new shaka.Player(video);
-        allData = CHANNELS; 
-        render();
-        play(allData[0]);
+        player = new shaka.Player(video);
+
+        // LÔGIC QUAN TRỌNG: Vượt rào Seenow bằng cách giả lập Chrome máy tính
+        player.getNetworkingEngine().registerRequestFilter((type, request) => {
+            request.headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+        });
+
+        // Tối ưu cho TV 2022 mạnh mẽ
+        player.configure({
+            streaming: { bufferingGoal: 8, rebufferingGoal: 2, bufferBehind: 1 }
+        });
+
+        renderTabs();
+        renderChannels();
+        if(CHANNELS.length > 0) play(CHANNELS[0]);
     }
 
     async function play(ch) {
-        await shakaPlayer.unload();
-        video.pause();
-        video.removeAttribute('src');
-        video.load();
+        try {
+            await player.unload();
+            video.src = "";
+            
+            // Xử lý ClearKey cho Seenow
+            if (ch.i && ch.k) {
+                const drm = {};
+                drm[toHex(ch.i)] = toHex(ch.k);
+                player.configure({ drm: { clearKeys: drm } });
+            }
 
-        if (ch.u.startsWith("http://")) {
+            // Thử load bằng Shaka (Dành cho MPD/M3U8)
+            await player.load(ch.u);
+        } catch (e) {
+            // Nếu là link HTTP/HTTPS trực tiếp, Shaka bỏ qua thì dùng video.src
             video.src = ch.u;
-            video.play().catch(() => {});
-        } else {
-            try { await shakaPlayer.load(ch.u); } 
-            catch(e) { video.src = ch.u; }
+            video.play().catch(()=>{});
         }
-        render(ch.u);
+
+        // Cập nhật trạng thái Active
+        document.querySelectorAll('.item').forEach(el => {
+            el.classList.toggle('active', el.getAttribute('data-name') === ch.n);
+        });
     }
 
-    function render(activeUrl = "") {
+    function renderTabs() {
+        document.getElementById('tab-bar').innerHTML = GROUPS.map(g => 
+            `<button class="${g===curTab?'active':''}" onclick="setTab('${g}', this)">${g}</button>`
+        ).join('');
+    }
+
+    function renderChannels() {
         const box = document.getElementById('list');
-        box.innerHTML = "";
-        allData.forEach(ch => {
-            if (curTab !== 'ALL' && ch.g !== curTab) return;
+        const frag = document.createDocumentFragment();
+        CHANNELS.forEach(ch => {
+            if (curTab !== 'TẤT CẢ' && ch.g !== curTab) return;
             const div = document.createElement('div');
-            div.className = `item ${ch.u === activeUrl ? 'active' : ''}`;
-            div.innerHTML = `<img src="${ch.l}" onerror="this.src='https://via.placeholder.com/50'"><span>${ch.n}</span>`;
+            div.className = "item";
+            div.setAttribute('data-name', ch.n);
+            div.setAttribute('tabindex', '0');
+            div.innerHTML = `<img src="${ch.l}" loading="lazy"><span>${ch.n}</span>`;
             div.onclick = () => play(ch);
-            box.appendChild(div);
+            frag.appendChild(div);
         });
+        box.innerHTML = "";
+        box.appendChild(frag);
     }
 
     function setTab(t, btn) {
         curTab = t;
         document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        render();
+        renderChannels();
+    }
+
+    function toHex(val) {
+        if (!val || val.length === 32) return val;
+        try { return Array.from(atob(val.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0).toString(16).padStart(2,'0')).join(''); } catch(e) { return val; }
     }
 
     init();
