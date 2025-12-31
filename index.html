@@ -228,63 +228,56 @@
         { n: "PLANET EARTH", u: "https://livecdn.seenow.vn/livesnv2/PE/manifest.mpd", i: "a7c942778e874d43be92b8d0a0cd11b4", k: "6d54358306571658ffdb952c6560688b", l: "https://vnepg.site/logos/138.png", g: "QUỐC TẾ" },
         { n: "WOMAN", u: "https://livecdn.seenow.vn/livesnv2/WO/manifest.mpd", i: "a7c942778e874d43be92b8d0a0cd11b4", k: "6d54358306571658ffdb952c6560688b", l: "https://vnepg.site/logos/139.png", g: "QUỐC TẾ" }
     ];
-
-    async function start() {
-        shaka.polyfill.installAll();
-        player = new shaka.Player(video);
-        player.configure({ streaming: { bufferingGoal: 8, rebufferingGoal: 2 } });
-        player.getNetworkingEngine().registerRequestFilter((type, req) => {
-            req.headers['User-Agent'] = 'Mozilla/5.0 (SMART-TV; Tizen 6.0) Chrome/120.0.0.0 Safari/537.36';
-        });
-
-        renderTabs();
-        await loadData();
-    }
-
-    async function loadData() {
-        try {
-            const r = await fetch(GITHUB_URL);
-            const t = await r.text();
-            let ext = [], cur = null;
-            t.split('\n').forEach(l => {
-                l = l.trim();
-                if (l.startsWith('#EXTINF')) {
-                    const n = l.split(',')[1] || "";
-                    let g = "ĐỊA PHƯƠNG";
-                    if (n.includes("VTVCAB")) g = "VTVCAB"; else if (n.includes("HTV")) g = "HTV"; else if (n.includes("SCTV")) g = "SCTV";
-                    cur = { n, u: "", l: l.match(/tvg-logo="([^"]+)"/i)?.[1] || "", g };
-                } else if (l.startsWith('http') && cur) { cur.u = l; ext.push(cur); cur = null; }
-            });
-            allData = [...FIXED_CHANNELS, ...ext].filter((v,i,a) => a.findIndex(x => x.u === v.u) === i);
-            render();
-            if(allData.length > 0) play(allData[0]);
-        } catch(e) { allData = FIXED_CHANNELS; render(); }
-    }
-
+    
     async function play(ch) {
-        document.querySelectorAll('.item').forEach(el => el.classList.toggle('active', el.dataset.url === ch.u));
-        try {
+    // 1. Highlight kênh
+    document.querySelectorAll('.item').forEach(el => el.classList.toggle('active', el.dataset.url === ch.u));
+
+    // 2. Xóa sạch dấu vết kênh cũ để chống lặp (Loop)
+    video.pause();
+    video.removeAttribute('src'); 
+    video.load(); 
+
+    try {
+        // Nếu là link MPD (Seenow) có Key -> Bắt buộc dùng Shaka
+        if (ch.u.includes('.mpd') || (ch.i && ch.k)) {
             await player.unload();
-            if (ch.u.includes('.mpd') || (ch.i && ch.k)) {
-                if (ch.i && ch.k) {
-                    let drm = {}; drm[toHex(ch.i)] = toHex(ch.k);
-                    player.configure({ drm: { clearKeys: drm } });
-                }
-                await player.load(ch.u);
-                video.play();
-            } else { throw new Error("Native"); }
-        } catch (e) {
-            // CƠ CHẾ CHỐNG XOAY VÒNG: Reset hoàn toàn trước khi nạp link HTTP
-            await player.unload();
-            video.pause();
-            video.removeAttribute('src'); 
-            video.load(); 
-            setTimeout(() => {
-                video.src = ch.u;
-                video.play().catch(() => { video.load(); video.play(); });
-            }, 150);
+            let drm = {};
+            drm[toHex(ch.i)] = toHex(ch.k);
+            player.configure({ drm: { clearKeys: drm } });
+            await player.load(ch.u);
+            video.play();
+        } else {
+            // Nếu là link HTTP thường -> Nhảy thẳng xuống Native
+            throw new Error("Dùng Native cho HTTP");
         }
+    } catch (e) {
+        console.warn("Đang ép trình phát gốc xử lý link HTTP...");
+        
+        // GIẢI PHÁP CHO LỖI XOAY VÒNG:
+        // Đảm bảo Shaka đã nhả thẻ video ra hoàn toàn
+        await player.unload();
+
+        // Gán link và cấu hình kiểu dữ liệu để TV không bị bối rối
+        video.src = ch.u;
+        if (ch.u.includes('m3u8')) {
+            video.type = 'application/x-mpegURL';
+        }
+
+        // Ép tải lại và phát
+        setTimeout(() => {
+            video.load();
+            var playPromise = video.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    console.log("TV chặn phát tự động, đang thử lại...");
+                    video.muted = true; // Mute để vượt qua rào cản tự động phát của TV
+                    video.play();
+                });
+            }
+        }, 200);
     }
+}
 
     function renderTabs() {
         const bar = document.getElementById('tab-bar');
