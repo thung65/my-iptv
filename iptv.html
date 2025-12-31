@@ -3,81 +3,102 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="referrer" content="no-referrer">
-    <title>SAMSUNG 4K PRO - SEENOW FIX</title>
+    <title>XEM TV PRO</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mux.js/6.0.1/mux.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
-    
+
     <style>
-        * { box-sizing: border-box; -webkit-transform: translateZ(0); }
-        body { margin: 0; background: #000; color: #fff; font-family: sans-serif; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
+        body { margin: 0; background: #000; color: #fff; font-family: 'Segoe UI', sans-serif; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
+        #video-box { width: 100%; aspect-ratio: 16/9; background: #000; border-bottom: 3px solid #ffcc00; box-shadow: 0 4px 15px rgba(255, 204, 0, 0.2); }
+        video { width: 100%; height: 100%; outline: none; }
         
-        /* Khung Video 4K */
-        #video-box { width: 100%; height: 50vh; background: #000; border-bottom: 3px solid #ffcc00; }
-        video { width: 100%; height: 100%; object-fit: contain; }
-
-        /* Tabs theo yêu cầu: Tất cả đầu, Quốc tế cuối */
-        .tabs { display: flex; overflow-x: auto; background: #111; padding: 12px; gap: 10px; flex-shrink: 0; scrollbar-width: none; }
+        /* Tabs sắp xếp theo yêu cầu của bạn */
+        .tabs { display: flex; overflow-x: auto; background: #111; padding: 12px; gap: 10px; border-bottom: 1px solid #333; scrollbar-width: none; }
         .tabs::-webkit-scrollbar { display: none; }
-        .tabs button { 
-            padding: 12px 25px; border: none; background: #252525; color: #aaa; 
-            font-size: 15px; font-weight: bold; cursor: pointer; border-radius: 8px; 
-        }
-        .tabs button.active { background: #ffcc00; color: #000; }
-
-        /* Danh sách 169 kênh cực mượt */
-        #list { 
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); 
-            gap: 15px; padding: 20px; overflow-y: auto; flex: 1; 
-            content-visibility: auto; /* Chống lag cho list dài */
-        }
-        .item { 
-            background: #1a1a1a; padding: 15px 5px; text-align: center; 
-            border: 2px solid #333; border-radius: 12px; cursor: pointer; 
-            transition: 0.2s; outline: none;
-        }
-        .item:focus, .item:hover { border-color: #ffcc00; transform: scale(1.05); background: #222; }
-        .item.active { border-color: #ffcc00; background: #252500; }
-        .item img { height: 45px; max-width: 85%; object-fit: contain; margin-bottom: 8px; }
-        .item span { font-size: 12px; font-weight: bold; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .tabs button { padding: 12px 22px; border: none; background: #222; color: #aaa; font-size: 14px; font-weight: bold; cursor: pointer; border-radius: 8px; white-space: nowrap; transition: 0.3s; }
+        .tabs button.active { background: #ffcc00; color: #000; box-shadow: 0 0 10px #ffcc00; }
+        
+        /* Danh sách kênh tối ưu cho TV 4K */
+        #list { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 15px; padding: 20px; overflow-y: auto; flex: 1; scroll-behavior: smooth; }
+        .item { background: #151515; padding: 15px 8px; text-align: center; border: 2px solid #222; border-radius: 12px; cursor: pointer; transition: all 0.2s; }
+        .item:hover, .item:focus { border-color: #ffcc00; transform: scale(1.05); background: #222; outline: none; }
+        .item.active { border-color: #ffcc00; background: #252500; position: relative; }
+        .item.active::after { content: '•'; color: #ffcc00; position: absolute; top: 5px; right: 10px; font-size: 20px; }
+        
+        .item img { height: 45px; max-width: 90%; object-fit: contain; display: block; margin: 0 auto 8px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); }
+        .item span { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; font-weight: bold; color: #efefef; }
     </style>
 </head>
 <body>
 
 <div id="video-box"><video id="video" controls autoplay playsinline></video></div>
-<div class="tabs" id="tab-bar"></div>
+
+<div class="tabs" id="tab-bar">
+    </div>
+
 <div id="list"></div>
 
 <script>
-    // Thứ tự nhóm: Tất cả ở đầu, Quốc tế ở cuối
-    const GROUPS = ["TẤT CẢ", "VTV", "SCTV", "VTVCAB", "HTV", "ĐỊA PHƯƠNG", "QUỐC TẾ"];
-    let player, video = document.getElementById('video'), curTab = "TẤT CẢ";
+    const GITHUB_URL = "https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123";
+    // Thứ tự nhóm: ALL đầu, QUỐC TẾ cuối
+    const TAB_ORDER = ["ALL", "VTV", "THIẾT YẾU", "VTVCAB", "HTV", "ĐỊA PHƯƠNG", "SCTV", "QUỐC TẾ"];
+    
+    let video = document.getElementById('video'), player, allData = [], curTab = "ALL";
 
-    // Danh sách 169 kênh của bạn dán vào đây
-    const CHANNELS = [
+    // Danh sách kênh cố định của bạn (Seenow DRM chạy tốt)
+    const FIXED_CHANNELS = [
+        // NHÓM VTV, THIẾT YẾU, SCTV... (Giữ nguyên từ code của bạn)
         { n: "SCTV9 HD", u: "https://livecdn.seenow.vn/mean/SCTV9/manifest.mpd", i: "22a9a9a63d2746df9f90c184c596105a", k: "2d9d24caeaea42f8b44e413fe04f0e5c", l: "https://vnepg.site/logos/53.png", g: "SCTV" },
-        { n: "VTV3 HD", u: "https://livecdn.seenow.vn/mean/VTV3HD/manifest.mpd", i: "b45089e9334a41309e30a9161a06733c", k: "976d91c28c86326e100366479f676450", l: "https://vnepg.site/logos/3.png", g: "VTV" },
-        // ... Dán tiếp các kênh khác
+        // ... Các kênh khác giữ nguyên
     ];
 
-    async function init() {
+    function toHex(val) {
+        if (!val) return "";
+        if (val.length === 32) return val;
+        try {
+            return Array.from(atob(val.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0).toString(16).padStart(2,'0')).join('');
+        } catch(e) { return val; }
+    }
+
+    async function start() {
         shaka.polyfill.installAll();
         player = new shaka.Player(video);
-
-        // LÔGIC QUAN TRỌNG: Vượt rào Seenow bằng cách giả lập Chrome máy tính
+        
+        // GIẢ LẬP TRÌNH DUYỆT ĐỂ KHÔNG BỊ CHẶN LINK
         player.getNetworkingEngine().registerRequestFilter((type, request) => {
             request.headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
         });
 
-        // Tối ưu cho TV 2022 mạnh mẽ
-        player.configure({
-            streaming: { bufferingGoal: 8, rebufferingGoal: 2, bufferBehind: 1 }
-        });
+        player.configure({ streaming: { bufferingGoal: 10, rebufferingGoal: 2 } });
 
         renderTabs();
-        renderChannels();
-        if(CHANNELS.length > 0) play(CHANNELS[0]);
+
+        try {
+            const r = await fetch(GITHUB_URL);
+            const t = await r.text();
+            let ext = [], cur = null;
+            t.split('\n').forEach(l => {
+                l = l.trim();
+                if (l.startsWith('#EXTINF')) {
+                    const n = l.split(',')[1] || "";
+                    let g = "ĐỊA PHƯƠNG";
+                    if (n.includes("VTVCAB")) g = "VTVCAB";
+                    else if (n.includes("HTV") || n.includes("HTVC")) g = "HTV";
+                    else if (n.includes("SCTV")) g = "SCTV";
+                    cur = { n, u: "", l: l.match(/tvg-logo="([^"]+)"/i)?.[1] || "", g };
+                } else if (l.startsWith('http') && cur) {
+                    cur.u = l; ext.push(cur); cur = null;
+                }
+            });
+            // Hợp nhất dữ liệu và loại bỏ trùng lặp
+            allData = [...FIXED_CHANNELS, ...ext].filter((v,i,a) => a.findIndex(x => x.u === v.u) === i);
+            render();
+            if(allData.length > 0) play(allData[0]);
+        } catch(e) {
+            allData = FIXED_CHANNELS;
+            render();
+        }
     }
 
     async function play(ch) {
@@ -85,47 +106,47 @@
             await player.unload();
             video.src = "";
             
-            // Xử lý ClearKey cho Seenow
+            // Xử lý ClearKey cho MPD Seenow/MyTV
             if (ch.i && ch.k) {
-                const drm = {};
-                drm[toHex(ch.i)] = toHex(ch.k);
-                player.configure({ drm: { clearKeys: drm } });
+                const drmConfig = {};
+                drmConfig[toHex(ch.i)] = toHex(ch.k);
+                player.configure({ drm: { clearKeys: drmConfig } });
+            } else {
+                // Reset cấu hình DRM nếu kênh không có khóa
+                player.configure({ drm: { clearKeys: {} } });
             }
 
-            // Thử load bằng Shaka (Dành cho MPD/M3U8)
             await player.load(ch.u);
+            video.play();
         } catch (e) {
-            // Nếu là link HTTP/HTTPS trực tiếp, Shaka bỏ qua thì dùng video.src
+            // Chế độ phát dự phòng cho link HTTP trực tiếp
             video.src = ch.u;
-            video.play().catch(()=>{});
+            video.play().catch(() => console.log("Lỗi phát kênh"));
         }
-
-        // Cập nhật trạng thái Active
-        document.querySelectorAll('.item').forEach(el => {
-            el.classList.toggle('active', el.getAttribute('data-name') === ch.n);
-        });
+        render(ch.u);
     }
 
     function renderTabs() {
-        document.getElementById('tab-bar').innerHTML = GROUPS.map(g => 
-            `<button class="${g===curTab?'active':''}" onclick="setTab('${g}', this)">${g}</button>`
+        const bar = document.getElementById('tab-bar');
+        bar.innerHTML = TAB_ORDER.map(t => 
+            `<button class="${t === curTab ? 'active' : ''}" onclick="setTab('${t}', this)">${t === 'ALL' ? 'TẤT CẢ' : t}</button>`
         ).join('');
     }
 
-    function renderChannels() {
+    function render(activeUrl = "") {
         const box = document.getElementById('list');
         const frag = document.createDocumentFragment();
-        CHANNELS.forEach(ch => {
-            if (curTab !== 'TẤT CẢ' && ch.g !== curTab) return;
+        box.innerHTML = "";
+        
+        allData.forEach(ch => {
+            if (curTab !== 'ALL' && ch.g !== curTab) return;
             const div = document.createElement('div');
-            div.className = "item";
-            div.setAttribute('data-name', ch.n);
-            div.setAttribute('tabindex', '0');
-            div.innerHTML = `<img src="${ch.l}" loading="lazy"><span>${ch.n}</span>`;
+            div.className = `item ${ch.u === activeUrl ? 'active' : ''}`;
+            div.setAttribute('tabindex', '0'); // Để điều khiển TV chọn được
+            div.innerHTML = `<img src="${ch.l}" loading="lazy" onerror="this.src='https://via.placeholder.com/50?text=TV'"><span>${ch.n}</span>`;
             div.onclick = () => play(ch);
             frag.appendChild(div);
         });
-        box.innerHTML = "";
         box.appendChild(frag);
     }
 
@@ -133,15 +154,12 @@
         curTab = t;
         document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        renderChannels();
+        render();
+        document.getElementById('list').scrollTop = 0;
     }
 
-    function toHex(val) {
-        if (!val || val.length === 32) return val;
-        try { return Array.from(atob(val.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0).toString(16).padStart(2,'0')).join(''); } catch(e) { return val; }
-    }
-
-    init();
+    start();
 </script>
 </body>
 </html>
+
