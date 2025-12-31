@@ -229,53 +229,51 @@
         { n: "WOMAN", u: "https://livecdn.seenow.vn/livesnv2/WO/manifest.mpd", i: "a7c942778e874d43be92b8d0a0cd11b4", k: "6d54358306571658ffdb952c6560688b", l: "https://vnepg.site/logos/139.png", g: "QUỐC TẾ" }
     ];
     
-    async function play(ch) {
-    // 1. Highlight kênh
-    document.querySelectorAll('.item').forEach(el => el.classList.toggle('active', el.dataset.url === ch.u));
+async function play(ch) {
+    // 1. Kiểm tra an toàn: Nếu không có link thì thoát luôn, không chạy tiếp để tránh treo web
+    if (!ch || !ch.u) return;
 
-    // 2. Xóa sạch dấu vết kênh cũ để chống lặp (Loop)
-    video.pause();
-    video.removeAttribute('src'); 
-    video.load(); 
-
+    // 2. Dọn dẹp thẻ video trước khi nạp kênh mới
     try {
-        // Nếu là link MPD (Seenow) có Key -> Bắt buộc dùng Shaka
+        if (player) await player.unload();
+        video.pause();
+        video.src = "";
+        video.load();
+    } catch (e) { console.log("Lỗi dọn dẹp, bỏ qua..."); }
+
+    // 3. Xử lý logic phát kênh
+    try {
+        // Trường hợp 1: Link Seenow DRM (MPD)
         if (ch.u.includes('.mpd') || (ch.i && ch.k)) {
-            await player.unload();
             let drm = {};
+            // Hàm toHex tự chế của bạn phải chuẩn ở đây
             drm[toHex(ch.i)] = toHex(ch.k);
-            player.configure({ drm: { clearKeys: drm } });
+            
+            player.configure({ 
+                drm: { clearKeys: drm },
+                streaming: { retryParameters: { maxAttempts: 2 } } // Chỉ thử lại 2 lần để tránh treo
+            });
+            
             await player.load(ch.u);
             video.play();
-        } else {
-            // Nếu là link HTTP thường -> Nhảy thẳng xuống Native
-            throw new Error("Dùng Native cho HTTP");
+        } 
+        // Trường hợp 2: Link thường (m3u8 hoặc http)
+        else {
+            throw new Error("Dùng Native");
         }
     } catch (e) {
-        console.warn("Đang ép trình phát gốc xử lý link HTTP...");
-        
-        // GIẢI PHÁP CHO LỖI XOAY VÒNG:
-        // Đảm bảo Shaka đã nhả thẻ video ra hoàn toàn
-        await player.unload();
-
-        // Gán link và cấu hình kiểu dữ liệu để TV không bị bối rối
+        // CƠ CHẾ DỰ PHÒNG: Nếu Shaka lỗi, dùng trình phát gốc ngay
+        console.warn("Chuyển sang trình phát gốc...");
         video.src = ch.u;
-        if (ch.u.includes('m3u8')) {
-            video.type = 'application/x-mpegURL';
-        }
-
-        // Ép tải lại và phát
+        video.type = ch.u.includes('m3u8') ? 'application/x-mpegURL' : 'video/mp4';
+        
         setTimeout(() => {
-            video.load();
-            var playPromise = video.play();
-            if (playPromise !== undefined) {
-                playPromise.catch(error => {
-                    console.log("TV chặn phát tự động, đang thử lại...");
-                    video.muted = true; // Mute để vượt qua rào cản tự động phát của TV
-                    video.play();
-                });
-            }
-        }, 200);
+            video.play().catch(() => {
+                // Nếu vẫn không chạy (do Tivi chặn), thì Mute để lách luật tự động phát
+                video.muted = true;
+                video.play();
+            });
+        }, 300);
     }
 }
 
