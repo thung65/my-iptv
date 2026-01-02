@@ -3,88 +3,104 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro IPTV Player</title>
+    <title>SportsTV - Pro Player</title>
     <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
     <style>
-        body { background: #050505; color: white; font-family: sans-serif; margin: 0; }
-        #video-wrapper { position: sticky; top: 0; background: #000; width: 100%; aspect-ratio: 16/9; z-index: 10; }
-        video { width: 100%; height: 100%; }
-        .controls { padding: 15px; }
-        .btn-add { background: #222; border: 1px dashed #555; padding: 15px; width: 100%; color: #00ff00; border-radius: 8px; cursor: pointer; }
-        
-        /* Danh sách kênh */
-        .section-label { background: #111; padding: 5px 15px; font-size: 12px; color: #888; margin-top: 10px; }
-        .channel-item { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #1a1a1a; cursor: pointer; }
-        .channel-item:active { background: #222; }
-        .channel-no { width: 30px; color: #00ff00; font-weight: bold; }
+        body { background: #000; color: #fff; font-family: sans-serif; margin: 0; overflow-x: hidden; }
+        #player-box { position: sticky; top: 0; width: 100%; background: #000; z-index: 100; border-bottom: 2px solid #00ff00; }
+        video { width: 100%; aspect-ratio: 16/9; display: block; }
+        .menu { padding: 15px; }
+        .btn-add { background: #1a1a1a; border: 2px dashed #444; color: #00ff00; padding: 15px; width: 100%; border-radius: 10px; cursor: pointer; font-weight: bold; }
+        .section-title { color: #00ff00; font-size: 14px; margin: 20px 0 10px; padding-left: 5px; border-left: 3px solid #00ff00; }
+        .channel-item { background: #111; margin-bottom: 5px; padding: 12px; border-radius: 5px; display: flex; align-items: center; cursor: pointer; }
+        .channel-item:hover { background: #222; }
+        .logo { width: 40px; height: 40px; margin-right: 15px; object-fit: contain; }
         
         /* Modal */
-        #modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1a1a1a; padding: 20px; border-radius: 12px; width: 80%; z-index: 20; border: 1px solid #333; }
-        input { width: 100%; padding: 12px; margin: 8px 0; background: #222; border: 1px solid #444; color: white; box-sizing: border-box; border-radius: 5px; }
-        .btn-go { background: #00ff00; color: black; border: none; padding: 10px; width: 100%; font-weight: bold; margin-top: 10px; border-radius: 5px; }
+        #modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1a1a1a; padding: 20px; width: 85%; border-radius: 10px; z-index: 200; border: 1px solid #333; }
+        input { width: 100%; padding: 12px; margin: 10px 0; background: #222; border: 1px solid #444; color: #fff; border-radius: 5px; box-sizing: border-box; }
+        .btn-submit { background: #00ff00; color: #000; border: none; padding: 12px; width: 100%; font-weight: bold; border-radius: 5px; cursor: pointer; }
     </style>
 </head>
 <body>
 
-<div id="video-wrapper">
-    <video id="videoElement" controls autoplay></video>
+<div id="player-box">
+    <video id="videoElement" controls autoplay playsinline></video>
 </div>
 
-<div class="controls">
-    <button class="btn-add" onclick="toggleModal(true)">+ THÊM DANH SÁCH PHÁT</button>
-</div>
+<div class="menu">
+    <button class="btn-add" onclick="openModal()">+ THÊM DANH SÁCH M3U</button>
 
-<div id="all-section">
-    <div class="section-label">TẤT CẢ (ALL)</div>
-    <div id="list-all"></div>
-</div>
+    <div id="all-section">
+        <div class="section-title">TẤT CẢ (ALL)</div>
+        <div id="list-all"></div>
+    </div>
 
-<div id="intl-section">
-    <div class="section-label">QUỐC TẾ (INTERNATIONAL)</div>
-    <div id="list-intl"></div>
+    <div id="intl-section">
+        <div class="section-title">QUỐC TẾ (INTERNATIONAL)</div>
+        <div id="list-intl"></div>
+    </div>
 </div>
 
 <div id="modal">
-    <h4 style="margin:0">Nhập nguồn IPTV</h4>
-    <input type="text" id="m3u-url" placeholder="Link .m3u từ GitHub..." value="https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/fpt">
+    <h3 style="margin:0">Nhập nguồn IPTV</h3>
+    <input type="text" id="m3u-url" placeholder="Dán link GitHub..." value="https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/fpt">
     <input type="text" id="m3u-name" placeholder="Tên danh sách">
-    <button class="btn-go" onclick="processList()">THỰC HIỆN</button>
-    <button onclick="toggleModal(false)" style="background:none; border:none; color:white; width:100%; margin-top:10px; font-size:12px;">Đóng</button>
+    <button class="btn-submit" onclick="startProcess()">THỰC HIỆN</button>
+    <button onclick="closeModal()" style="background:none; border:none; color:#888; width:100%; margin-top:10px;">Đóng</button>
 </div>
 
 <script>
     let player = null;
 
-    function toggleModal(show) { document.getElementById('modal').style.display = show ? 'block' : 'none'; }
+    function openModal() { document.getElementById('modal').style.display = 'block'; }
+    function closeModal() { document.getElementById('modal').style.display = 'none'; }
 
-    async function processList() {
+    async function startProcess() {
         const url = document.getElementById('m3u-url').value;
         if(!url) return;
-        toggleModal(false);
+        closeModal();
 
-        const res = await fetch(url);
-        const data = await res.text();
-        
+        try {
+            // Sử dụng một proxy trung gian để vượt lỗi CORS của trình duyệt
+            const corsProxy = "https://api.allorigins.win/raw?url=";
+            const res = await fetch(corsProxy + encodeURIComponent(url));
+            const data = await res.text();
+            parseM3U(data);
+        } catch (e) {
+            alert("Không thể tải danh sách. Lỗi kết nối!");
+        }
+    }
+
+    function parseM3U(data) {
         const lines = data.split('\n');
         const listAll = document.getElementById('list-all');
         const listIntl = document.getElementById('list-intl');
         listAll.innerHTML = ""; listIntl.innerHTML = "";
 
-        let currentName = "";
-        lines.forEach((line, index) => {
-            if(line.includes('#EXTINF:')) {
+        let currentName = "", currentLogo = "";
+
+        lines.forEach(line => {
+            line = line.trim();
+            if(line.startsWith('#EXTINF:')) {
                 currentName = line.split(',').pop();
+                const logoMatch = line.match(/tvg-logo="([^"]+)"/);
+                currentLogo = logoMatch ? logoMatch[1] : "";
             } else if(line.startsWith('http')) {
-                const isIntl = line.toLowerCase().includes('intl') || currentName.toLowerCase().includes('intl');
-                createItem(currentName, line.trim(), isIntl ? listIntl : listAll);
+                // Kiểm tra nếu là kênh quốc tế (dựa vào tên hoặc link)
+                const isIntl = line.toLowerCase().includes('intl') || currentName.toLowerCase().includes('quốc tế');
+                createItem(currentName, line, currentLogo, isIntl ? listIntl : listAll);
             }
         });
     }
 
-    function createItem(name, url, container) {
+    function createItem(name, url, logo, container) {
         const div = document.createElement('div');
         div.className = 'channel-item';
-        div.innerHTML = `<div class="channel-no">▶</div> <div>${name}</div>`;
+        div.innerHTML = `
+            <img class="logo" src="${logo || 'https://via.placeholder.com/40'}" onerror="this.src='https://via.placeholder.com/40'">
+            <div>${name}</div>
+        `;
         div.onclick = () => playStream(url);
         container.appendChild(div);
     }
@@ -92,7 +108,6 @@
     function playStream(url) {
         const videoElement = document.getElementById('videoElement');
         
-        // Hủy player cũ nếu đang chạy
         if (player) {
             player.unload();
             player.detachMediaElement();
@@ -100,18 +115,21 @@
             player = null;
         }
 
-        // Khởi tạo mpegts.js - Chuyên trị luồng HTTP/UDP từ LAN
         if (mpegts.getFeatureList().mseLivePlayback) {
             player = mpegts.createPlayer({
-                type: 'mse', // Hoặc 'mpegts'
+                type: 'mse', // Chế độ Media Source Extensions để đọc luồng thô
                 isLive: true,
-                url: url
+                url: url,
+                enableStashBuffer: false // Giảm độ trễ tối đa
             });
             player.attachMediaElement(videoElement);
             player.load();
-            player.play();
+            player.play().catch(e => {
+                console.log("Cần bấm vào màn hình để phát âm thanh");
+            });
         }
     }
 </script>
 </body>
 </html>
+
