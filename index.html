@@ -226,38 +226,6 @@
         { n: "WOMAN", u: "https://livecdn.seenow.vn/livesnv2/WO/manifest.mpd", i: "a7c942778e874d43be92b8d0a0cd11b4", k: "6d54358306571658ffdb952c6560688b", l: "https://vnepg.site/logos/139.png", g: "QUỐC TẾ" }
     ];
 
-    async function start() {
-        shaka.polyfill.installAll();
-        player = new shaka.Player(video);
-        player.configure({ streaming: { bufferingGoal: 8, rebufferingGoal: 2 } });
-        player.getNetworkingEngine().registerRequestFilter((type, req) => {
-            req.headers['User-Agent'] = 'Mozilla/5.0 (SMART-TV; Tizen 6.0) Chrome/120.0.0.0 Safari/537.36';
-        });
-
-        renderTabs();
-        await loadData();
-    }
-
-    async function loadData() {
-        try {
-            const r = await fetch(GITHUB_URL);
-            const t = await r.text();
-            let ext = [], cur = null;
-            t.split('\n').forEach(l => {
-                l = l.trim();
-                if (l.startsWith('#EXTINF')) {
-                    const n = l.split(',')[1] || "";
-                    let g = "ĐỊA PHƯƠNG";
-                    if (n.includes("VTVCAB")) g = "VTVCAB"; else if (n.includes("HTV")) g = "HTV"; else if (n.includes("SCTV")) g = "SCTV";
-                    cur = { n, u: "", l: l.match(/tvg-logo="([^"]+)"/i)?.[1] || "", g };
-                } else if (l.startsWith('http') && cur) { cur.u = l; ext.push(cur); cur = null; }
-            });
-            allData = [...FIXED_CHANNELS, ...ext].filter((v,i,a) => a.findIndex(x => x.u === v.u) === i);
-            render();
-            if(allData.length > 0) play(allData[0]);
-        } catch(e) { allData = FIXED_CHANNELS; render(); }
-    }
-
     async function play(ch) {
         document.querySelectorAll('.item').forEach(el => el.classList.toggle('active', el.dataset.url === ch.u));
         try {
