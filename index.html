@@ -226,150 +226,83 @@
         { n: "WOMAN", u: "https://livecdn.seenow.vn/livesnv2/WO/manifest.mpd", i: "a7c942778e874d43be92b8d0a0cd11b4", k: "6d54358306571658ffdb952c6560688b", l: "https://vnepg.site/logos/139.png", g: "QUỐC TẾ" }
     ];
 
-    async function start() {
+    function toHex(v) { if(!v) return ""; if(v.length===32) return v; try { return Array.from(atob(v.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0).toString(16).padStart(2,'0')).join(''); } catch(e) { return v; } }
+
+    async function init() {
+        vjsPlayer = videojs('my-video');
         shaka.polyfill.installAll();
-        player = new shaka.Player(video);
-        player.configure({ streaming: { bufferingGoal: 8, rebufferingGoal: 2 } });
-        player.getNetworkingEngine().registerRequestFilter((type, req) => {
-            req.headers['User-Agent'] = 'Mozilla/5.0 (SMART-TV; Tizen 6.0) Chrome/120.0.0.0 Safari/537.36';
+        shakaPlayer = new shaka.Player(vjsPlayer.tech().el());
+
+        // Lắng nghe lỗi để kích hoạt Fallback
+        vjsPlayer.on('error', () => {
+            const currentSrc = vjsPlayer.src();
+            console.log("VideoJS lỗi, thử Fallback sang Shaka...");
+            tryShakaFallback(currentSrc);
         });
 
-        renderTabs();
-        await loadData();
-    }
-
-    async function loadData() {
         try {
-            const r = await fetch(GITHUB_URL);
-            const t = await r.text();
+            const r = await fetch(GITHUB_URL), t = await r.text();
             let ext = [], cur = null;
             t.split('\n').forEach(l => {
                 l = l.trim();
                 if (l.startsWith('#EXTINF')) {
                     const n = l.split(',')[1] || "";
-                    let g = "ĐỊA PHƯƠNG";
-                    if (n.includes("VTVCAB")) g = "VTVCAB"; else if (n.includes("HTV")) g = "HTV"; else if (n.includes("SCTV")) g = "SCTV";
+                    let g = n.includes("VTVCAB") ? "VTVCAB" : (n.includes("HTV") ? "HTV" : "ĐỊA PHƯƠNG");
                     cur = { n, u: "", l: l.match(/tvg-logo="([^"]+)"/i)?.[1] || "", g };
                 } else if (l.startsWith('http') && cur) { cur.u = l; ext.push(cur); cur = null; }
             });
-            allData = [...FIXED_CHANNELS, ...ext].filter((v,i,a) => a.findIndex(x => x.u === v.u) === i);
+            allData = [...FIXED_CHANNELS, ...ext];
             render();
-            if(allData.length > 0) play(allData[0]);
-        } catch(e) { allData = FIXED_CHANNELS; render(); }
+        } catch(e) {}
     }
 
-    async function play(ch) {
-        document.querySelectorAll('.item').forEach(el => el.classList.toggle('active', el.dataset.url === ch.u));
+    async function playChannel(ch) {
+        document.getElementById('home-logo').style.display = "none";
+        vjsPlayer.reset();
+        await shakaPlayer.unload();
+
+        if (ch.u.includes(".mpd")) {
+            if (ch.i && ch.k) {
+                let conf = {}; conf[toHex(ch.i)] = toHex(ch.k);
+                shakaPlayer.configure({ drm: { clearKeys: conf } });
+            }
+            try { await shakaPlayer.load(ch.u); vjsPlayer.play(); } catch(e) { console.error("Shaka Load lỗi"); }
+        } else {
+            // Thử chạy bằng Video.js trước
+            vjsPlayer.src({ src: ch.u, type: 'application/x-mpegURL' });
+            vjsPlayer.play().catch(() => tryShakaFallback(ch.u));
+        }
+        render(ch.u);
+    }
+
+    async function tryShakaFallback(url) {
+        console.log("Đang thử luồng dự phòng cho:", url);
         try {
-            await player.unload();
-            if (ch.u.includes('.mpd') || (ch.i && ch.k)) {
-                if (ch.i && ch.k) {
-                    let drm = {}; drm[toHex(ch.i)] = toHex(ch.k);
-                    player.configure({ drm: { clearKeys: drm } });
-                }
-                await player.load(ch.u);
-                video.play();
-            } else { throw new Error("Native"); }
-        } catch (e) {
-            // CƠ CHẾ CHỐNG XOAY VÒNG: Reset hoàn toàn trước khi nạp link HTTP
-            await player.unload();
-            video.pause();
-            video.removeAttribute('src'); 
-            video.load(); 
-            setTimeout(() => {
-                video.src = ch.u;
-                video.play().catch(() => { video.load(); video.play(); });
-            }, 150);
+            await shakaPlayer.load(url);
+            vjsPlayer.play();
+        } catch(e) {
+            // Nếu vẫn lỗi, thử dùng Video tag gốc (Native HLS)
+            vjsPlayer.tech().el().src = url;
         }
     }
 
-    function renderTabs() {
-        const bar = document.getElementById('tab-bar');
-        bar.innerHTML = TAB_ORDER.map(t => `<button class="${t===curTab?'active':''}" onclick="setTab('${t}', this)">${t==='ALL'?'TẤT CẢ':t}</button>`).join('');
-    }
-
-    function render() {
+    function render(activeUrl = "") {
         const box = document.getElementById('list'); box.innerHTML = "";
-        const frag = document.createDocumentFragment();
         allData.forEach(ch => {
             if (curTab !== 'ALL' && ch.g !== curTab) return;
             const div = document.createElement('div');
-            div.className = "item"; div.dataset.url = ch.u; div.setAttribute('tabindex', '0');
-            div.innerHTML = `<img src="${ch.l}" loading="lazy" onerror="this.src='https://via.placeholder.com/50?text=TV'"><span>${ch.n}</span>`;
-            div.onclick = () => play(ch);
-            frag.appendChild(div);
+            div.className = `item ${ch.u === activeUrl ? 'active' : ''}`;
+            div.innerHTML = `<img src="${ch.l}" onerror="this.src='https://via.placeholder.com/50?text=TV'"><span>${ch.n}</span>`;
+            div.onclick = () => playChannel(ch); box.appendChild(div);
         });
-        box.appendChild(frag);
     }
 
     function setTab(t, btn) {
-        curTab = t;
-        document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        render();
+        curTab = t; document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active'); render();
     }
 
-    function toHex(val) {
-        try { return (val.length === 32) ? val : Array.from(atob(val.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0).toString(16).padStart(2,'0')).join(''); } catch(e) { return val; }
-    }
-
-    video.onwaiting = function() {
-        setTimeout(() => { if (video.paused && !video.ended) { video.load(); video.play(); } }, 4000);
-    };
-
-    start();
-</script>
-</body>
-</html>
-        lines.forEach(line => {
-            line = line.trim();
-            if(line.startsWith('#EXTINF:')) {
-                currentName = line.split(',').pop();
-                const logoMatch = line.match(/tvg-logo="([^"]+)"/);
-                currentLogo = logoMatch ? logoMatch[1] : "";
-            } else if(line.startsWith('http')) {
-                // Kiểm tra nếu là kênh quốc tế (dựa vào tên hoặc link)
-                const isIntl = line.toLowerCase().includes('intl') || currentName.toLowerCase().includes('quốc tế');
-                createItem(currentName, line, currentLogo, isIntl ? listIntl : listAll);
-            }
-        });
-    }
-
-    function createItem(name, url, logo, container) {
-        const div = document.createElement('div');
-        div.className = 'channel-item';
-        div.innerHTML = `
-            <img class="logo" src="${logo || 'https://via.placeholder.com/40'}" onerror="this.src='https://via.placeholder.com/40'">
-            <div>${name}</div>
-        `;
-        div.onclick = () => playStream(url);
-        container.appendChild(div);
-    }
-
-    function playStream(url) {
-        const videoElement = document.getElementById('videoElement');
-        
-        if (player) {
-            player.unload();
-            player.detachMediaElement();
-            player.destroy();
-            player = null;
-        }
-
-        if (mpegts.getFeatureList().mseLivePlayback) {
-            player = mpegts.createPlayer({
-                type: 'mse', // Chế độ Media Source Extensions để đọc luồng thô
-                isLive: true,
-                url: url,
-                enableStashBuffer: false // Giảm độ trễ tối đa
-            });
-            player.attachMediaElement(videoElement);
-            player.load();
-            player.play().catch(e => {
-                console.log("Cần bấm vào màn hình để phát âm thanh");
-            });
-        }
-    }
+    init();
 </script>
 </body>
 </html>
