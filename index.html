@@ -3,50 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TV VIP - FULL OPTION</title>
-    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+    <title>SAMSUNG TV FULL OPTION</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mux.js/6.0.1/mux.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
-    <script src="https://vjs.zencdn.net/8.3.0/video.min.js"></script>
 
     <style>
-        :root { --gold: #ffcc00; --bg: #000; --card: #151515; }
-        body { margin: 0; background: var(--bg); color: #fff; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-        #video-box { width: 100%; max-width: 960px; margin: 0 auto; background: #000; aspect-ratio: 16/9; position: sticky; top: 0; z-index: 99; }
-        video { width: 100%; height: 100%; }
-        .tabs { display: flex; overflow-x: auto; background: #111; padding: 10px; gap: 8px; border-bottom: 1px solid #222; scrollbar-width: none; }
-        .tabs button { padding: 8px 15px; border: none; border-radius: 20px; background: #222; color: #888; white-space: nowrap; font-size: 11px; font-weight: bold; cursor: pointer; }
-        .tabs button.active { background: var(--gold); color: #000; }
-        #list { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; padding: 15px; overflow-y: auto; flex: 1; }
-        .item { background: var(--card); border-radius: 8px; padding: 12px 5px; text-align: center; cursor: pointer; border: 1px solid #222; position: relative; }
-        .item.active { border-color: var(--gold); background: #221f00; border-bottom: 3px solid var(--gold); }
-        .img-wrap { width: 100%; height: 45px; display: flex; align-items: center; justify-content: center; margin-bottom: 5px; }
-        .item img { max-width: 90%; max-height: 100%; object-fit: contain; }
-        .item span { font-size: 10px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: bold; }
-        .vip { position: absolute; top: 5px; right: 5px; background: var(--gold); color: #000; font-size: 8px; padding: 1px 4px; border-radius: 2px; font-weight: 900; }
+        body { margin: 0; background: #000; color: #fff; font-family: sans-serif; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
+        #video-box { width: 100%; aspect-ratio: 16/9; background: #000; border-bottom: 2px solid #ffcc00; }
+        video { width: 100%; height: 100%; outline: none; }
+        .tabs { display: flex; overflow-x: auto; background: #111; padding: 10px; gap: 8px; border-bottom: 1px solid #333; scrollbar-width: none; }
+        .tabs::-webkit-scrollbar { display: none; }
+        .tabs button { padding: 10px 18px; border: none; background: #222; color: #999; font-size: 13px; font-weight: bold; cursor: pointer; border-radius: 4px; white-space: nowrap; }
+        .tabs button.active { background: #ffcc00; color: #000; }
+        #list { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; padding: 12px; overflow-y: auto; flex: 1; }
+        .item { background: #111; padding: 12px 5px; text-align: center; border: 1px solid #222; border-radius: 6px; cursor: pointer; }
+        .item.active { border-color: #ffcc00; background: #1a1a00; }
+        .item img { height: 35px; max-width: 90%; object-fit: contain; display: block; margin: 0 auto 5px; }
+        .item span { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; font-weight: bold; }
     </style>
 </head>
 <body>
 
-<div id="video-box">
-    <video id="video" controls autoplay playsinline></video>
-</div>
+<div id="video-box"><video id="video" controls autoplay playsinline></video></div>
 
 <div class="tabs">
     <button class="active" onclick="setTab('ALL', this)">TẤT CẢ</button>
-    <button onclick="setTab('VTV', this)">VTV/THIẾT YẾU</button>
-    <button onclick="setTab('VTVCAB', this)">VTVCAB VIP</button>
+    <button onclick="setTab('VTV', this)">VTV</button>
+    <button onclick="setTab('SCTV', this)">SCTV</button>
+    <button onclick="setTab('VTVCAB', this)">VTVCAB</button>
     <button onclick="setTab('HTV', this)">HTV/HTVC</button>
-    <button onclick="setTab('SCTV', this)">SCTV VIP</button>
     <button onclick="setTab('ĐỊA PHƯƠNG', this)">ĐỊA PHƯƠNG</button>
-    <button onclick="setTab('QUỐC TẾ', this)">QUỐC TẾ VIP</button>
+    <button onclick="setTab('QUỐC TẾ', this)">QUỐC TẾ</button>
 </div>
 
 <div id="list"></div>
 
 <script>
-    let video, player, allData = [], curTab = "ALL", curIdx = 0;
+    let video = document.getElementById('video'), player, allData = [], curTab = "ALL";
 
     // Danh sách kênh Quốc tế đã cập nhật link Seenow trực tiếp
     const FIXED_CHANNELS = [
@@ -232,98 +226,68 @@
         { n: "PLANET EARTH", u: "https://livevlisctcdnw.seenow.vn/livesnv2/PE/manifest.mpd", i: "a7c942778e874d43be92b8d0a0cd11b4", k: "6d54358306571658ffdb952c6560688b", l: "https://vnepg.site/logos/138.png", g: "QUỐC TẾ" },
         { n: "WOMAN", u: "https://livevlisctcdnw.seenow.vn/livesnv2/WO/manifest.mpd", i: "a7c942778e874d43be92b8d0a0cd11b4", k: "6d54358306571658ffdb952c6560688b", l: "https://vnepg.site/logos/139.png", g: "QUỐC TẾ" }
     ];
-
-    function toHex(b64) {
+    
+    function toHex(val) {
+        if (!val) return "";
+        if (val.length === 32) return val;
         try {
-            const bin = atob(b64.replace(/-/g, '+').replace(/_/g, '/'));
-            let res = "";
-            for (let i = 0; i < bin.length; i++) {
-                let h = bin.charCodeAt(i).toString(16);
-                res += (h.length === 1 ? '0' : '') + h;
-            }
-            return res;
-        } catch(e) { return ""; }
+            return Array.from(atob(val.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0).toString(16).padStart(2,'0')).join('');
+        } catch(e) { return val; }
     }
 
     async function start() {
-        video = document.getElementById('video');
         shaka.polyfill.installAll();
-        if (shaka.Player.isBrowserSupported()) {
-            player = new shaka.Player(video);
-            player.configure({
-                manifest: { hls: { ignoreTextStreamFailures: true } },
-                streaming: { jumpLargeGaps: true }
-            });
-            await load();
-            render();
-            if(allData.length > 0) play(0);
-        }
-    }
+        player = new shaka.Player(video);
+        player.configure({ streaming: { bufferingGoal: 8, rebufferingGoal: 2 } });
 
-    async function load() {
-        let vnChannels = [];
         try {
-            const r = await fetch(GITHUB);
-            const txt = await r.text();
-            let cur = null;
-            txt.split('\n').forEach(line => {
-                if (line.includes('#EXTINF')) {
-                    const name = line.split(',')[1]?.trim() || "Kênh";
-                    const nU = name.toUpperCase();
-                    let logoMatch = line.match(/(?:tvg-logo|logo|tvg-logo-url)="([^"]+)"/i);
-                    let logo = logoMatch ? logoMatch[1] : "";
-
-                    let g = "ĐỊA PHƯƠNG", vip = false;
-                    if (nU.includes("VTVCAB") || nU.includes("ON ")) { g = "VTVCAB"; vip = true; }
-                    else if (nU.includes("SCTV")) { g = "SCTV"; vip = true; }
-                    else if (nU.includes("HTV")) { g = "HTV"; vip = nU.includes("HTVC"); }
-                    else if (nU.includes("VTV") || nU.includes("ANTV") || nU.includes("QPVN") || nU.includes("VIETNAM TODAY")) {
-                        g = "VTV";
-                        const free = ["VTV1", "ANTV", "QPVN", "HTV7", "HTV9", "VIETNAM TODAY"];
-                        vip = !free.some(k => nU.includes(k));
-                    }
-                    cur = { n: name, u: "", l: logo, g: g, v: vip };
-                } else if (line.startsWith('http') && cur) {
-                    cur.u = line.trim();
-                    vnChannels.push(cur);
-                    cur = null;
+            const r = await fetch(GITHUB_URL);
+            const t = await r.text();
+            let ext = [], cur = null;
+            t.split('\n').forEach(l => {
+                l = l.trim();
+                if (l.startsWith('#EXTINF')) {
+                    const n = l.split(',')[1] || "";
+                    let g = "ĐỊA PHƯƠNG";
+                    if (n.includes("VTVCAB")) g = "VTVCAB";
+                    else if (n.includes("HTV")) g = "HTV";
+                    cur = { n, u: "", l: l.match(/tvg-logo="([^"]+)"/i)?.[1] || "", g };
+                } else if (l.startsWith('http') && cur) {
+                    cur.u = l; ext.push(cur); cur = null;
                 }
             });
+            allData = [...FIXED_CHANNELS, ...ext].filter((v,i,a) => a.findIndex(x => x.u === v.u) === i);
+            render();
+            if(allData.length > 0) play(allData[0]);
         } catch(e) {}
-        allData = [...vnChannels, ...FIXED_INT];
     }
 
-    async function play(idx) {
-        curIdx = idx; render();
-        const ch = allData[idx];
+    async function play(ch) {
+        await player.unload();
+        let drmConfig = {};
         if (ch.i && ch.k) {
-            player.configure({ drm: { clearKeys: { [toHex(ch.i)]: toHex(ch.k) } } });
-        } else {
-            player.configure({ drm: { clearKeys: {} } });
+            drmConfig[toHex(ch.i)] = toHex(ch.k);
+            player.configure({ drm: { clearKeys: drmConfig } });
         }
         try {
             await player.load(ch.u);
             video.play();
         } catch (e) {
-            if (ch.u.includes('.m3u8')) {
-                video.src = ch.u; video.play();
-            }
+            video.src = ch.u;
+            video.play();
         }
+        render(ch.u);
     }
 
-    function render() {
+    function render(activeUrl = "") {
         const box = document.getElementById('list');
         box.innerHTML = "";
-        allData.forEach((ch, i) => {
+        allData.forEach(ch => {
             if (curTab !== 'ALL' && ch.g !== curTab) return;
             const div = document.createElement('div');
-            div.className = `item ${curIdx === i ? 'active' : ''}`;
-            div.innerHTML = `
-                ${ch.v ? '<div class="vip">VIP</div>' : ''}
-                <div class="img-wrap"><img src="${ch.l || 'https://via.placeholder.com/100x45/222/555?text=TV'}" onerror="this.src='https://via.placeholder.com/100x45/222/555?text=TV'"></div>
-                <span>${ch.n}</span>
-            `;
-            div.onclick = () => play(i);
+            div.className = `item ${ch.u === activeUrl ? 'active' : ''}`;
+            div.innerHTML = `<img src="${ch.l}" onerror="this.src='https://via.placeholder.com/50?text=TV'"><span>${ch.n}</span>`;
+            div.onclick = () => play(ch);
             box.appendChild(div);
         });
     }
@@ -334,6 +298,7 @@
         btn.classList.add('active');
         render();
     }
+
     start();
 </script>
 </body>
