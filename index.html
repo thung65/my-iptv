@@ -11,21 +11,43 @@
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: sans-serif; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
         #video-box { width: 100%; aspect-ratio: 16/9; background: #000; border-bottom: 2px solid #ffcc00; }
-        video { width: 100%; height: 100%; outline: none; }
-        .tabs { display: flex; overflow-x: auto; background: #111; padding: 10px; gap: 8px; border-bottom: 1px solid #333; scrollbar-width: none; }
+        video { width: 100%; height: 100%; outline: none; background: #000; }
+        
+        /* Tối ưu thanh Tab cuộn mượt */
+        .tabs { display: flex; overflow-x: auto; background: #111; padding: 10px; gap: 8px; border-bottom: 1px solid #333; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
         .tabs::-webkit-scrollbar { display: none; }
-        .tabs button { padding: 10px 18px; border: none; background: #222; color: #999; font-size: 13px; font-weight: bold; cursor: pointer; border-radius: 4px; white-space: nowrap; }
+        .tabs button { padding: 10px 18px; border: none; background: #222; color: #999; font-size: 13px; font-weight: bold; cursor: pointer; border-radius: 4px; white-space: nowrap; transition: 0.2s; }
         .tabs button.active { background: #ffcc00; color: #000; }
-        #list { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; padding: 12px; overflow-y: auto; flex: 1; }
-        .item { background: #111; padding: 12px 5px; text-align: center; border: 1px solid #222; border-radius: 6px; cursor: pointer; }
+
+        /* Tối ưu danh sách kênh chống lag cho Tivi */
+        #list { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); 
+            gap: 10px; 
+            padding: 12px; 
+            overflow-y: auto; 
+            flex: 1; 
+            content-visibility: auto; /* Giảm tải render cho Tivi */
+        }
+        .item { 
+            background: #111; 
+            padding: 12px 5px; 
+            text-align: center; 
+            border: 1px solid #222; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            will-change: transform; /* Tận dụng GPU */
+        }
         .item.active { border-color: #ffcc00; background: #1a1a00; }
         .item img { height: 35px; max-width: 90%; object-fit: contain; display: block; margin: 0 auto 5px; }
-        .item span { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; font-weight: bold; }
+        .item span { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; font-weight: bold; color: #ccc; }
     </style>
 </head>
 <body>
 
-<div id="video-box"><video id="video" controls autoplay playsinline></video></div>
+<div id="video-box">
+    <video id="video" controls autoplay playsinline></video>
+</div>
 
 <div class="tabs">
     <button class="active" onclick="setTab('ALL', this)">TẤT CẢ</button>
@@ -40,8 +62,7 @@
 <div id="list"></div>
 
 <script>
-    const GITHUB_URL = "https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/vntv";
-    let video = document.getElementById('video'), player, allData = [], curTab = "ALL";
+    let video, player, allData = [], curTab = "ALL", curIdx = 0;
 
     const FIXED_CHANNELS = [
         // NHÓM VTV
@@ -227,7 +248,7 @@
         { n: "WOMAN", u: "https://livevlisctcdnw.seenow.vn/livesnv2/WO/manifest.mpd", i: "a7c942778e874d43be92b8d0a0cd11b4", k: "6d54358306571658ffdb952c6560688b", l: "https://vnepg.site/logos/139.png", g: "QUỐC TẾ" }
     ];
     
-    function toHex(val) {
+    function cleanName(name) {
         if (!name) return "";
         return name.replace(/HD|VIP|VTVCAB|SCTV/gi, "").trim();
     }
@@ -345,7 +366,6 @@
 
     // Khởi chạy khi web sẵn sàng
     document.addEventListener('DOMContentLoaded', start);
-
 </script>
 </body>
 </html>
