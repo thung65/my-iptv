@@ -228,67 +228,110 @@
     ];
     
     function toHex(val) {
-        if (!val) return "";
-        if (val.length === 32) return val;
+        if (!name) return "";
+        return name.replace(/HD|VIP|VTVCAB|SCTV/gi, "").trim();
+    }
+
+    function toHex(b64) {
         try {
-            return Array.from(atob(val.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0).toString(16).padStart(2,'0')).join('');
-        } catch(e) { return val; }
+            const bin = atob(b64.replace(/-/g, '+').replace(/_/g, '/'));
+            let res = "";
+            for (let i = 0; i < bin.length; i++) {
+                let h = bin.charCodeAt(i).toString(16);
+                res += (h.length === 1 ? '0' : '') + h;
+            }
+            return res;
+        } catch(e) { return ""; }
     }
 
     async function start() {
+        video = document.getElementById('video');
         shaka.polyfill.installAll();
-        player = new shaka.Player(video);
-        player.configure({ streaming: { bufferingGoal: 8, rebufferingGoal: 2 } });
-
-        try {
-            const r = await fetch(GITHUB_URL);
-            const t = await r.text();
-            let ext = [], cur = null;
-            t.split('\n').forEach(l => {
-                l = l.trim();
-                if (l.startsWith('#EXTINF')) {
-                    const n = l.split(',')[1] || "";
-                    let g = "ĐỊA PHƯƠNG";
-                    if (n.includes("VTVCAB")) g = "VTVCAB";
-                    else if (n.includes("HTV")) g = "HTV";
-                    cur = { n, u: "", l: l.match(/tvg-logo="([^"]+)"/i)?.[1] || "", g };
-                } else if (l.startsWith('http') && cur) {
-                    cur.u = l; ext.push(cur); cur = null;
+        if (shaka.Player.isBrowserSupported()) {
+            player = new shaka.Player(video);
+            
+            // Cấu hình Shaka cực nhẹ để tránh lag trên Tivi
+            player.configure({
+                streaming: {
+                    bufferingGoal: 7, 
+                    rebufferingGoal: 2,
+                    bufferBehind: 0,
+                    jumpLargeGaps: true
                 }
             });
-            allData = [...FIXED_CHANNELS, ...ext].filter((v,i,a) => a.findIndex(x => x.u === v.u) === i);
-            render();
-            if(allData.length > 0) play(allData[0]);
-        } catch(e) {}
+
+            // Tự động nạp dữ liệu (Bạn có thể thêm lại link GITHUB_URL ở đây nếu muốn)
+            allData = [...FIXED_CHANNELS];
+            renderList();
+            if(allData.length > 0) playChannel(0);
+        }
     }
 
-    async function play(ch) {
-        await player.unload();
-        let drmConfig = {};
-        if (ch.i && ch.k) {
-            drmConfig[toHex(ch.i)] = toHex(ch.k);
-            player.configure({ drm: { clearKeys: drmConfig } });
+    // Hàm phát dự phòng bằng trình phát gốc của Tivi
+    function playDefault(url) {
+        console.log("Shaka lỗi - Chuyển sang trình phát mặc định");
+        if (player) {
+            player.detach(); 
         }
+        video.src = url;
+        video.play().catch(() => {});
+    }
+
+    async function playChannel(idx) {
+        if (!allData[idx]) return;
+        curIdx = idx; 
+        renderList();
+        const ch = allData[idx];
+
+        // Reset video trước khi đổi kênh
+        video.pause();
+        video.src = "";
+
+        // Cấu hình DRM ClearKey nếu có
+        if (ch.i && ch.k) {
+            player.configure({ drm: { clearKeys: { [toHex(ch.i)]: toHex(ch.k) } } });
+        } else {
+            player.configure({ drm: { clearKeys: {} } });
+        }
+
         try {
+            // Thử nạp bằng Shaka
+            if (!player.getNetworkingEngine()) {
+                player = new shaka.Player(video); // Khởi tạo lại nếu đã bị detach
+            }
             await player.load(ch.u);
             video.play();
         } catch (e) {
-            video.src = ch.u;
-            video.play();
+            // Lệnh chuyển về trình phát mặc định nếu Shaka thất bại
+            playDefault(ch.u);
         }
-        render(ch.u);
     }
 
-    function render(activeUrl = "") {
+    function renderList() {
         const box = document.getElementById('list');
-        box.innerHTML = "";
-        allData.forEach(ch => {
+        const fragment = document.createDocumentFragment();
+        
+        allData.forEach((ch, i) => {
             if (curTab !== 'ALL' && ch.g !== curTab) return;
+            
             const div = document.createElement('div');
-            div.className = `item ${ch.u === activeUrl ? 'active' : ''}`;
-            div.innerHTML = `<img src="${ch.l}" onerror="this.src='https://via.placeholder.com/50?text=TV'"><span>${ch.n}</span>`;
-            div.onclick = () => play(ch);
-            box.appendChild(div);
+            div.className = `item ${curIdx === i ? 'active' : ''}`;
+            div.innerHTML = `
+                <div class="img-wrap">
+                    <img src="${ch.l || 'https://via.placeholder.com/100x45/222/555?text=TV'}" 
+                         loading="lazy"
+                         onerror="this.src='https://via.placeholder.com/100x45/222/555?text=TV'">
+                </div>
+                <span>${cleanName(ch.n)}</span>
+            `;
+            div.onclick = () => playChannel(i);
+            fragment.appendChild(div);
+        });
+
+        // Dùng requestAnimationFrame để cập nhật giao diện cực mượt
+        requestAnimationFrame(() => {
+            box.innerHTML = "";
+            box.appendChild(fragment);
         });
     }
 
@@ -296,10 +339,13 @@
         curTab = t;
         document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        render();
+        renderList();
+        document.getElementById('list').scrollTop = 0;
     }
 
-    start();
+    // Khởi chạy khi web sẵn sàng
+    document.addEventListener('DOMContentLoaded', start);
+
 </script>
 </body>
 </html>
