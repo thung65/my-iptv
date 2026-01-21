@@ -232,59 +232,44 @@
     
     function toHex(val) {
         if (!val || val.length === 32) return val;
-        try {
-            return Array.from(atob(val.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0).toString(16).padStart(2,'0')).join('');
-        } catch(e) { return val; }
+        try { return Array.from(atob(val.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0).toString(16).padStart(2,'0')).join(''); } 
+        catch(e) { return val; }
     }
 
-    async function start() {
+    async function init() {
         shaka.polyfill.installAll();
         player = new shaka.Player(video);
-        
-        // Cấu hình Shaka cho Tizen
-        player.configure({ streaming: { bufferingGoal: 10, jumpLargeGaps: true } });
-
-        allData = FIXED_CHANNELS;
         render();
-        if(allData.length > 0) play(allData[0]);
-
+        play(CHANNELS[0]);
         window.addEventListener('keydown', handleRemote);
     }
 
     async function play(ch) {
-        // Reset trình phát
+        // Mỗi khi đổi kênh, phải "dọn dẹp" sạch trình phát cũ
+        if (player) await player.unload();
+        video.src = "";
+        iframe.src = "about:blank"; 
+        
         video.style.display = 'none';
         iframe.style.display = 'none';
-        iframe.src = "";
-        video.pause();
-        video.src = "";
 
-        // TRƯỜNG HỢP 1: Link Web/Iframe (như hoiquan.click)
-        if (ch.u.includes('module') || ch.u.includes('php') || ch.u.includes('html')) {
-            if (player) await player.unload();
+        if (ch.u.includes('hoiquan.click') || ch.u.includes('module')) {
             iframe.style.display = 'block';
-            iframe.src = ch.u;
-            console.log("Phát bằng Iframe/Native Browser");
-        } 
-        // TRƯỜNG HỢP 2: Thử bằng Shaka Player (DASH/MPD/HLS)
-        else {
+            // Dùng setTimeout để đảm bảo iframe cũ đã bị hủy hoàn toàn
+            setTimeout(() => { iframe.src = ch.u; }, 100);
+        } else {
             video.style.display = 'block';
             try {
-                await player.unload();
-                player.configure({ drm: { clearKeys: {} } });
                 if (ch.i && ch.k) {
                     player.configure({ drm: { clearKeys: { [toHex(ch.i)]: toHex(ch.k) } } });
+                } else {
+                    player.configure({ drm: { clearKeys: {} } });
                 }
                 await player.load(ch.u);
                 video.play();
-                console.log("Phát bằng Shaka");
             } catch (e) {
-                // TRƯỜNG HỢP 3: Shaka lỗi -> Chuyển về Trình phát gốc (Native)
-                console.log("Shaka lỗi, thử Trình phát gốc Samsung...");
-                if (player) player.detach();
                 video.src = ch.u;
-                video.play().catch(()=>{});
-                setTimeout(() => player.attach(video), 1000);
+                video.play().catch(() => {});
             }
         }
         render(ch.u);
@@ -292,29 +277,33 @@
 
     function handleRemote(e) {
         const active = document.activeElement;
-        switch(e.keyCode) {
-            case 37: if(active.previousElementSibling) active.previousElementSibling.focus(); break;
-            case 39: if(active.nextElementSibling) active.nextElementSibling.focus(); break;
-            case 40: if(active.parentElement.id === 'tab-bar') document.querySelector('.item').focus(); break;
-            case 38: if(active.classList.contains('item')) document.querySelector('.tabs button.active').focus(); break;
-            case 13: active.click(); break;
+        // Nếu đang ở trong List mà bấm Lên -> về Tab
+        if (e.keyCode === 38 && active.classList.contains('item')) {
+            document.querySelector('.tabs button.active').focus();
+            e.preventDefault();
         }
+        // Nếu đang ở Tab mà bấm Xuống -> vào List
+        else if (e.keyCode === 40 && active.parentElement.id === 'tab-bar') {
+            document.querySelector('.item').focus();
+            e.preventDefault();
+        }
+        else if (e.keyCode === 37) active.previousElementSibling?.focus();
+        else if (e.keyCode === 39) active.nextElementSibling?.focus();
+        else if (e.keyCode === 13) active.click();
     }
 
     function render(activeUrl = "") {
         const box = document.getElementById('list');
         box.innerHTML = "";
-        const frag = document.createDocumentFragment();
-        allData.forEach(ch => {
+        CHANNELS.forEach(ch => {
             if (curTab !== 'ALL' && ch.g !== curTab) return;
             const div = document.createElement('div');
             div.className = `item ${ch.u === activeUrl ? 'active' : ''}`;
             div.tabIndex = 0;
-            div.innerHTML = `<img src="${ch.l}" onerror="this.src='https://via.placeholder.com/50?text=TV'"><span>${ch.n}</span>`;
+            div.innerHTML = `<span>${ch.n}</span>`;
             div.onclick = () => play(ch);
-            frag.appendChild(div);
+            box.appendChild(div);
         });
-        box.appendChild(frag);
     }
 
     function setTab(t, btn) {
@@ -324,7 +313,7 @@
         render();
     }
 
-    start();
+    init();
 </script>
 </body>
 </html>
