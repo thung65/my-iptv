@@ -230,12 +230,11 @@
     ];
     
     function formatKey(v) {
-        if (!v) return "";
-        v = v.trim();
+        if (!v) return ""; v = v.trim();
         if (v.length === 32 && /^[0-9a-fA-F]+$/.test(v)) return v.toLowerCase();
         try {
-            const binary = atob(v.replace(/-/g, '+').replace(/_/g, '/'));
-            return Array.from(binary, c => c.charCodeAt(0).toString(16).padStart(2, '0')).join('').toLowerCase();
+            const b = atob(v.replace(/-/g, '+').replace(/_/g, '/'));
+            return Array.from(b, c => c.charCodeAt(0).toString(16).padStart(2, '0')).join('').toLowerCase();
         } catch(e) { return v; }
     }
 
@@ -243,72 +242,46 @@
         video = document.getElementById('video');
         shaka.polyfill.installAll();
         player = new shaka.Player(video);
-
-        // Cấu hình quan trọng cho Samsung Q70B và Mux.js
         player.configure({
-            streaming: { bufferingGoal: 2, jumpLargeGaps: true },
+            streaming: { bufferingGoal: 3, jumpLargeGaps: true },
             manifest: { hls: { useMuxJS: true } }
         });
-
         renderList();
-        if(FIXED_CHANNELS.length > 0) playChannel(0);
+        if(ALL_CHANNELS.length > 0) playChannel(0);
     }
 
     async function playChannel(idx) {
-    curIdx = idx;
-    renderList();
-    const ch = allData[idx];
-    
-    // 1. Reset trình phát hoàn toàn để tránh xung đột kênh cũ
-    await player.unload();
-    video.removeAttribute('src');
-    video.load();
-
-    // 2. Cấu hình DRM cho kênh có mã bảo vệ
-    if (ch.i && ch.k) {
-        player.configure({
-            drm: { clearKeys: { [formatKey(ch.i)]: formatKey(ch.k) } }
-        });
-    } else {
-        player.configure({ drm: { clearKeys: {} } });
-    }
-
-    try {
-        const url = ch.u.toLowerCase();
+        curIdx = idx; renderList();
+        const ch = ALL_CHANNELS[idx];
         
-        // 3. CHIẾN THUẬT PHÁT THÔNG MINH
-        if (url.includes('.mpd')) {
-            // Nếu là MPD -> Bắt buộc dùng Shaka
+        await player.unload();
+        video.removeAttribute('src');
+        video.load();
+
+        if (ch.i && ch.k) {
+            player.configure({ drm: { clearKeys: { [formatKey(ch.i)]: formatKey(ch.k) } } });
+        } else {
+            player.configure({ drm: { clearKeys: {} } });
+        }
+
+        try {
+            // Thử nạp bằng Shaka (Hỗ trợ MPD và M3U8 TS)
             await player.load(ch.u);
-        } 
-        else if (url.includes('ace.hoiquan.click') || url.includes('.ts')) {
-            // Nếu là link Hội quán hoặc file .ts -> Thử Shaka trước, lỗi thì ép phát Native
-            await player.load(ch.u).catch(async () => {
-                console.warn("Nguồn nhạy cảm, chuyển sang phát trực tiếp...");
-                video.src = ch.u;
-                await video.play();
-            });
+        } catch (e) {
+            // Nếu lỗi (Link Hội Quán chặn CORS hoặc link lạ), đẩy thẳng vào trình duyệt phát Native
+            console.warn("Chuyển sang chế độ phát trực tiếp...");
+            video.src = ch.u;
+            video.play().catch(() => {});
         }
-        else {
-            // Các file .m3u8 thông thường -> Dùng Shaka để tận dụng mux.js cho ổn định
-            await player.load(ch.u).catch(async () => {
-                video.src = ch.u; // Dự phòng cuối cùng
-                await video.play();
-            });
-        }
-        console.log("Đang phát: " + ch.n);
-    } catch (e) {
-        console.error("Lỗi phát kênh: ", e);
     }
-}
 
     function renderList() {
         const box = document.getElementById('list'); box.innerHTML = "";
-        FIXED_CHANNELS.forEach((ch, i) => {
+        ALL_CHANNELS.forEach((ch, i) => {
             if (curTab !== 'ALL' && ch.g !== curTab) return;
             const div = document.createElement('div');
             div.className = `item ${curIdx === i ? 'active' : ''}`;
-            div.innerHTML = `<img src="${ch.l}" onerror="this.src='https://via.placeholder.com/50'"><span>${ch.n}</span>`;
+            div.innerHTML = `<img src="${ch.l}" onerror="this.src='https://via.placeholder.com/60x40/222/555?text=TV'"><span>${ch.n}</span>`;
             div.onclick = () => playChannel(i);
             box.appendChild(div);
         });
@@ -320,7 +293,6 @@
         btn.classList.add('active');
         renderList();
     }
-
     init();
 </script>
 </body>
