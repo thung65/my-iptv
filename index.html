@@ -85,51 +85,30 @@
     }
 
     async function start() {
-        video = document.getElementById('video');
         shaka.polyfill.installAll();
-        if (shaka.Player.isBrowserSupported()) {
-            player = new shaka.Player(video);
-            player.configure({
-                manifest: { hls: { ignoreTextStreamFailures: true } },
-                streaming: { jumpLargeGaps: true }
-            });
-            await load();
-            render();
-            if(allData.length > 0) play(0);
-        }
-    }
+        player = new shaka.Player(video);
+        player.configure({ streaming: { bufferingGoal: 8, rebufferingGoal: 2 } });
 
-    async function load() {
-        let vnChannels = [];
         try {
-            const r = await fetch(GITHUB);
-            const txt = await r.text();
-            let cur = null;
-            txt.split('\n').forEach(line => {
-                if (line.includes('#EXTINF')) {
-                    const name = line.split(',')[1]?.trim() || "Kênh";
-                    const nU = name.toUpperCase();
-                    let logoMatch = line.match(/(?:tvg-logo|logo|tvg-logo-url)="([^"]+)"/i);
-                    let logo = logoMatch ? logoMatch[1] : "";
-
-                    let g = "ĐỊA PHƯƠNG", vip = false;
-                    if (nU.includes("VTVCAB") || nU.includes("ON ")) { g = "VTVCAB"; vip = true; }
-                    else if (nU.includes("SCTV")) { g = "SCTV"; vip = true; }
-                    else if (nU.includes("HTV")) { g = "HTV"; vip = nU.includes("HTVC"); }
-                    else if (nU.includes("VTV") || nU.includes("ANTV") || nU.includes("QPVN") || nU.includes("VIETNAM TODAY")) {
-                        g = "VTV";
-                        const free = ["VTV1", "ANTV", "QPVN", "HTV7", "HTV9", "VIETNAM TODAY"];
-                        vip = !free.some(k => nU.includes(k));
-                    }
-                    cur = { n: name, u: "", l: logo, g: g, v: vip };
-                } else if (line.startsWith('http') && cur) {
-                    cur.u = line.trim();
-                    vnChannels.push(cur);
-                    cur = null;
+            const r = await fetch(GITHUB_URL);
+            const t = await r.text();
+            let ext = [], cur = null;
+            t.split('\n').forEach(l => {
+                l = l.trim();
+                if (l.startsWith('#EXTINF')) {
+                    const n = l.split(',')[1] || "";
+                    let g = "ĐỊA PHƯƠNG";
+                    if (n.includes("VTVCAB")) g = "VTVCAB";
+                    else if (n.includes("HTV")) g = "HTV";
+                    cur = { n, u: "", l: l.match(/tvg-logo="([^"]+)"/i)?.[1] || "", g };
+                } else if (l.startsWith('http') && cur) {
+                    cur.u = l; ext.push(cur); cur = null;
                 }
             });
+            allData = [...FIXED_CHANNELS, ...ext].filter((v,i,a) => a.findIndex(x => x.u === v.u) === i);
+            render();
+            if(allData.length > 0) play(allData[0]);
         } catch(e) {}
-        allData = [...vnChannels, ...FIXED_INT];
     }
 
     async function play(idx) {
