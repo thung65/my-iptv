@@ -3,120 +3,117 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TV PRO MAX - ALL IN ONE</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.4.10/hls.min.js"></script>
+    <title>TV PLAYER FINAL</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
     <style>
-        :root { --main: #ffcc00; --bg: #0a0a0a; }
-        body { margin: 0; background: var(--bg); color: #fff; font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-        #player-container { width: 100%; max-width: 1000px; margin: 0 auto; aspect-ratio: 16/9; background: #000; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
-        video { width: 100%; height: 100%; outline: none; }
-        .tabs { display: flex; background: #1a1a1a; padding: 10px; gap: 10px; overflow-x: auto; border-bottom: 1px solid #333; }
-        .tabs button { padding: 10px 20px; border: none; border-radius: 5px; background: #333; color: #aaa; cursor: pointer; font-weight: bold; white-space: nowrap; }
-        .tabs button.active { background: var(--main); color: #000; }
-        #list { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; padding: 20px; overflow-y: auto; flex: 1; }
-        .item { background: #1e1e1e; border-radius: 10px; padding: 15px 5px; text-align: center; cursor: pointer; border: 1px solid transparent; transition: 0.3s; }
-        .item:hover { border-color: var(--main); }
-        .item.active { background: #2a2600; border-color: var(--main); border-bottom: 5px solid var(--main); }
-        .item img { max-width: 80%; height: 45px; object-fit: contain; margin-bottom: 8px; }
-        .item span { font-size: 11px; display: block; font-weight: bold; color: #eee; }
+        body { margin: 0; background: #000; color: #fff; font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        #v-wrap { width: 100%; aspect-ratio: 16/9; background: #000; border-bottom: 2px solid #ffcc00; }
+        video { width: 100%; height: 100%; }
+        
+        /* Tab menu: ALL đầu - QUỐC TẾ cuối */
+        .tabs { display: flex; overflow-x: auto; background: #111; padding: 10px; gap: 5px; }
+        .tabs button { padding: 8px 15px; border: none; background: #222; color: #aaa; border-radius: 4px; white-space: nowrap; cursor: pointer; }
+        .tabs button.active { background: #ffcc00; color: #000; font-weight: bold; }
+
+        #list { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; padding: 10px; overflow-y: auto; flex: 1; }
+        .item { background: #1a1a1a; padding: 10px 5px; text-align: center; border-radius: 5px; cursor: pointer; border: 1px solid #333; }
+        .item.active { border-color: #ffcc00; background: #332b00; }
+        .item img { height: 40px; max-width: 90%; object-fit: contain; }
+        .item span { display: block; font-size: 11px; margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     </style>
 </head>
 <body>
 
-<div id="player-container">
-    <video id="video" controls autoplay playsinline></video>
-</div>
+<div id="v-wrap"><video id="video" controls autoplay playsinline></video></div>
 
 <div class="tabs" id="tab-bar">
     <button class="active" onclick="setTab('ALL', this)">TẤT CẢ</button>
     <button onclick="setTab('VTV', this)">VTV</button>
+    <button onclick="setTab('HTV', this)">HTV/HTVC</button>
     <button onclick="setTab('SCTV', this)">SCTV</button>
+    <button onclick="setTab('VTVCAB', this)">VTVCAB</button>
+    <button onclick="setTab('ĐỊA PHƯƠNG', this)">ĐỊA PHƯƠNG</button>
     <button onclick="setTab('QUỐC TẾ', this)">QUỐC TẾ</button>
 </div>
 
 <div id="list"></div>
 
 <script>
-    let video = document.getElementById('video');
-    let shakaPlayer, hls;
-    let curTab = "ALL", curIdx = 0;
+    let player, video = document.getElementById('video');
+    let curT = 'ALL', curI = 0;
 
-    // DANH SÁCH KÊNH (BẠN DÁN TẤT CẢ VÀO ĐÂY)
-    const CHANNELS = [
+    // DANH SÁCH TỔNG HỢP CỦA BẠN (Dán hết vào đây)
+    const DATA = [
         { n: "HBO HD", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/hbo.smil/manifest.mpd", i: "Cd3+PWOGPK+ut50FRrCYqw", k: "PeDzjc8BSCff1b7Dh0PGog", l: "https://vnepg.site/logos/129.png", g: "QUỐC TẾ" },
+        { n: "AXN HD", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/axn.smil/manifest.mpd", i: "nSn4fv3sPJ+rNo9ySmKtDg", k: "bxwJwDXqs2Mj1g0UVNs9IA", l: "https://vnepg.site/logos/163.png", g: "QUỐC TẾ" },
         { n: "VTV3 HD", u: "https://live.fptplay53.net/fnxch2/vtv3hd_abr.smil/chunklist_b4200000.m3u8", l: "https://vnepg.site/logos/3.png", g: "VTV" },
-        { n: "Hội Quán Ace", u: "https://ace.hoiquan.click/module/IPTV/?id=youtv&accKenh=madam69", l: "https://via.placeholder.com/50", g: "VTV" }
+        { n: "Kênh Hội Quán", u: "https://ace.hoiquan.click/module/IPTV/?id=youtv&accKenh=madam69", l: "https://via.placeholder.com/50", g: "VTV" }
     ];
 
-    function format(v) {
+    // Chuyển Base64/Hex về dạng Shaka hiểu được
+    function fix(v) {
         if (!v) return ""; v = v.trim();
-        if (v.length === 32 && /^[0-9a-fA-F]+$/.test(v)) return v.toLowerCase();
+        if (v.length === 32) return v.toLowerCase();
         try {
             return Array.from(atob(v.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0).toString(16).padStart(2,'0')).join('').toLowerCase();
         } catch(e) { return v; }
     }
 
-    async function setupPlayer() {
+    async function init() {
         shaka.polyfill.installAll();
-        shakaPlayer = new shaka.Player(video);
-        renderList();
-        if(CHANNELS.length > 0) play(0);
+        player = new shaka.Player(video);
+        player.addEventListener('error', (e) => {
+            // NẾU SHAKA LỖI (như link Hội Quán), CHUYỂN SANG PHÁT TRỰC TIẾP
+            if (video.src !== DATA[curI].u) {
+                video.src = DATA[curI].u;
+                video.play().catch(()=>{});
+            }
+        });
+        show();
+        play(0);
     }
 
     async function play(idx) {
-        curIdx = idx; renderList();
-        const ch = CHANNELS[idx];
-        const url = ch.u;
+        curI = idx; show();
+        const ch = DATA[idx];
+        await player.unload();
+        video.src = ""; // Xóa link cũ hoàn toàn
 
-        // Reset tất cả các trình phát
-        if (hls) { hls.destroy(); hls = null; }
-        await shakaPlayer.unload();
-        video.removeAttribute('src');
-        video.load();
+        if (ch.i && ch.k) {
+            player.configure({ drm: { clearKeys: { [fix(ch.i)]: fix(ch.k) } } });
+        } else {
+            player.configure({ drm: { clearKeys: {} } });
+        }
 
-        // PHÂN LOẠI CÁCH PHÁT
-        if (url.includes('.mpd')) {
-            // DÙNG SHAKA CHO MPD
-            if (ch.i && ch.k) {
-                shakaPlayer.configure({ drm: { clearKeys: { [format(ch.i)]: format(ch.k) } } });
-            }
-            try { await shakaPlayer.load(url); } catch(e) { console.error(e); }
-        } 
-        else if (Hls.isSupported() && (url.includes('.m3u8') || url.includes('ace.hoiquan'))) {
-            // DÙNG HLS.JS CHO M3U8 VÀ HỘI QUÁN (Hỗ trợ lách CORS tốt hơn)
-            hls = new Hls({ xhrSetup: xhr => { xhr.withCredentials = false; } });
-            hls.loadSource(url);
-            hls.attachMedia(video);
-            hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
-        } 
-        else {
-            // PHÁT TRỰC TIẾP (Native)
-            video.src = url;
-            video.play().catch(() => {});
+        try {
+            await player.load(ch.u);
+        } catch (e) {
+            // Lệnh dự phòng cuối cùng cho link Ace/M3U8 khó
+            video.src = ch.u;
+            video.play().catch(()=>{});
         }
     }
 
-    function renderList() {
-        const box = document.getElementById('list'); box.innerHTML = "";
-        CHANNELS.forEach((ch, i) => {
-            if (curTab !== 'ALL' && ch.g !== curTab) return;
-            const div = document.createElement('div');
-            div.className = `item ${curIdx === i ? 'active' : ''}`;
-            div.innerHTML = `<img src="${ch.l}" onerror="this.src='https://via.placeholder.com/50'"><span>${ch.n}</span>`;
-            div.onclick = () => play(i);
-            box.appendChild(div);
+    function show() {
+        const b = document.getElementById('list'); b.innerHTML = "";
+        DATA.forEach((ch, i) => {
+            if (curT !== 'ALL' && ch.g !== curT) return;
+            const d = document.createElement('div');
+            d.className = `item ${curI === i ? 'active' : ''}`;
+            d.innerHTML = `<img src="${ch.l}" onerror="this.src='https://via.placeholder.com/50'"><span>${ch.n}</span>`;
+            d.onclick = () => play(i);
+            b.appendChild(d);
         });
     }
 
-    function setTab(t, btn) {
-        curTab = t;
+    function tab(g, btn) {
+        curT = g;
         document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        renderList();
+        show();
     }
 
-    setupPlayer();
+    init();
 </script>
 </body>
 </html>
