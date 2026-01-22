@@ -72,16 +72,12 @@
         { n: "FASHION TV", u: "https://s2129134.cdn.mytvnet.vn/pkg20/live_dzones/ftv.smil/manifest.mpd", i: "wdnyVwECNQi/pnN+OoxwAQ", k: "MMNhPpsG4PfMIBAU8xv12A", l: "https://vnepg.site/logos/165.png", g: "QUỐC TẾ", v: true }
     ];
 
-    function toHex(b64) {
+    function toHex(val) {
+        if (!val) return "";
+        if (val.length === 32) return val;
         try {
-            const bin = atob(b64.replace(/-/g, '+').replace(/_/g, '/'));
-            let res = "";
-            for (let i = 0; i < bin.length; i++) {
-                let h = bin.charCodeAt(i).toString(16);
-                res += (h.length === 1 ? '0' : '') + h;
-            }
-            return res;
-        } catch(e) { return ""; }
+            return Array.from(atob(val.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0).toString(16).padStart(2,'0')).join('');
+        } catch(e) { return val; }
     }
 
     async function start() {
@@ -111,37 +107,32 @@
         } catch(e) {}
     }
 
-    async function play(idx) {
-        curIdx = idx; render();
-        const ch = allData[idx];
+    async function play(ch) {
+        await player.unload();
+        let drmConfig = {};
         if (ch.i && ch.k) {
-            player.configure({ drm: { clearKeys: { [toHex(ch.i)]: toHex(ch.k) } } });
-        } else {
-            player.configure({ drm: { clearKeys: {} } });
+            drmConfig[toHex(ch.i)] = toHex(ch.k);
+            player.configure({ drm: { clearKeys: drmConfig } });
         }
         try {
             await player.load(ch.u);
             video.play();
         } catch (e) {
-            if (ch.u.includes('.m3u8')) {
-                video.src = ch.u; video.play();
-            }
+            video.src = ch.u;
+            video.play();
         }
+        render(ch.u);
     }
 
-    function render() {
+    function render(activeUrl = "") {
         const box = document.getElementById('list');
         box.innerHTML = "";
-        allData.forEach((ch, i) => {
+        allData.forEach(ch => {
             if (curTab !== 'ALL' && ch.g !== curTab) return;
             const div = document.createElement('div');
-            div.className = `item ${curIdx === i ? 'active' : ''}`;
-            div.innerHTML = `
-                ${ch.v ? '<div class="vip">VIP</div>' : ''}
-                <div class="img-wrap"><img src="${ch.l || 'https://via.placeholder.com/100x45/222/555?text=TV'}" onerror="this.src='https://via.placeholder.com/100x45/222/555?text=TV'"></div>
-                <span>${ch.n}</span>
-            `;
-            div.onclick = () => play(i);
+            div.className = `item ${ch.u === activeUrl ? 'active' : ''}`;
+            div.innerHTML = `<img src="${ch.l}" onerror="this.src='https://via.placeholder.com/50?text=TV'"><span>${ch.n}</span>`;
+            div.onclick = () => play(ch);
             box.appendChild(div);
         });
     }
@@ -152,6 +143,7 @@
         btn.classList.add('active');
         render();
     }
+
     start();
 </script>
 </body>
