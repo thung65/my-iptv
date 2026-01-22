@@ -254,17 +254,17 @@
         if(FIXED_CHANNELS.length > 0) playChannel(0);
     }
 
-async function playChannel(idx) {
+    async function playChannel(idx) {
     curIdx = idx;
     renderList();
     const ch = allData[idx];
     
-    // 1. Dọn dẹp trình phát cũ
+    // 1. Reset trình phát hoàn toàn để tránh xung đột kênh cũ
     await player.unload();
-    video.removeAttribute('src'); 
+    video.removeAttribute('src');
     video.load();
 
-    // 2. Cấu hình DRM nếu có (Cho các kênh Quốc tế)
+    // 2. Cấu hình DRM cho kênh có mã bảo vệ
     if (ch.i && ch.k) {
         player.configure({
             drm: { clearKeys: { [formatKey(ch.i)]: formatKey(ch.k) } }
@@ -273,20 +273,32 @@ async function playChannel(idx) {
         player.configure({ drm: { clearKeys: {} } });
     }
 
-    // 3. Xử lý thông minh cho link Ace/Hội quán
     try {
-        // Ưu tiên nạp bằng Shaka (để dùng được mux.js cho m3u8)
-        await player.load(ch.u);
-        console.log("Phát bằng Shaka thành công");
-    } catch (e) {
-        // Nếu Shaka báo lỗi (thường gặp với link Hội quán do chặn CORS hoặc định dạng)
-        console.warn("Shaka lỗi, đang thử phương thức phát trực tiếp (Native)...");
+        const url = ch.u.toLowerCase();
         
-        // Buộc video chạy trực tiếp bằng link gốc (cách Chrome hay dùng)
-        video.src = ch.u;
-        video.play().catch(err => {
-            console.error("Cả hai phương thức đều thất bại:", err);
-        });
+        // 3. CHIẾN THUẬT PHÁT THÔNG MINH
+        if (url.includes('.mpd')) {
+            // Nếu là MPD -> Bắt buộc dùng Shaka
+            await player.load(ch.u);
+        } 
+        else if (url.includes('ace.hoiquan.click') || url.includes('.ts')) {
+            // Nếu là link Hội quán hoặc file .ts -> Thử Shaka trước, lỗi thì ép phát Native
+            await player.load(ch.u).catch(async () => {
+                console.warn("Nguồn nhạy cảm, chuyển sang phát trực tiếp...");
+                video.src = ch.u;
+                await video.play();
+            });
+        }
+        else {
+            // Các file .m3u8 thông thường -> Dùng Shaka để tận dụng mux.js cho ổn định
+            await player.load(ch.u).catch(async () => {
+                video.src = ch.u; // Dự phòng cuối cùng
+                await video.play();
+            });
+        }
+        console.log("Đang phát: " + ch.n);
+    } catch (e) {
+        console.error("Lỗi phát kênh: ", e);
     }
 }
 
