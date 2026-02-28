@@ -35,7 +35,7 @@
 <div class="tabs">
     <button class="active" onclick="setTab('ALL', this)">TẤT CẢ</button>
     <button onclick="setTab('VTV', this)">VTV</button>
-    <button onclick="setTab('🌐| Thiết yếu ', this)">Thiết Yếu</button> 
+    <button onclick="setTab('🌐| Thiết yếu ', this)">🌐| Thiết Yếu</button> 
     <button onclick="setTab('VTVCab', this)">VTVCab </button>
     <button onclick="setTab('HTV', this)">HTV</button>
     <button onclick="setTab('HTVC', this)">HTVC</button> 
@@ -48,7 +48,7 @@
 
 <script>
     const GITHUB = "https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123";
-    let video, player, allData = [], curTab = "ALL", curIdx = 0;
+    let video, player, allData = [], curTab = "ALL", curIdx = -1;
 
     function toHex(b64) {
         try {
@@ -72,18 +72,20 @@
                 streaming: { jumpLargeGaps: true }
             });
             await load();
-            render();
-            if(allData.length > 0) play(0);
         }
     }
 
     async function load() {
         let vnChannels = [];
+        let intChannels = []; // Dùng để đẩy xuống cuối
+        
         try {
             const r = await fetch(GITHUB);
             const txt = await r.text();
             let cur = null;
-            txt.split('\n').forEach(line => {
+            const lines = txt.split('\n');
+            
+            lines.forEach(line => {
                 if (line.includes('#EXTINF')) {
                     const name = line.split(',')[1]?.trim() || "Kênh";
                     const nU = name.toUpperCase();
@@ -91,39 +93,61 @@
                     let logo = logoMatch ? logoMatch[1] : "";
 
                     let g = "ĐỊA PHƯƠNG", vip = false;
-                    if (nU.includes("VTVCAB") || nU.includes("ON ")) { g = "VTVCAB"; vip = true; }
+                    
+                    // Logic Phân loại
+                    if (nU.includes("VTVCAB") || nU.includes("ON ")) { g = "VTVCab"; vip = true; }
                     else if (nU.includes("SCTV")) { g = "SCTV"; vip = true; }
-                    else if (nU.includes("HTV")) { g = "HTV"; vip = nU.includes("HTVC"); }
-                    else if (nU.includes("VTV") || nU.includes("ANTV") || nU.includes("QPVN") || nU.includes("VIETNAM TODAY")) {
+                    else if (nU.includes("HTVC")) { g = "HTVC"; vip = true; }
+                    else if (nU.includes("HTV")) { g = "HTV"; }
+                    else if (nU.includes("VTV") || nU.includes("ANTV") || nU.includes("QPVN")) {
                         g = "VTV";
-                        const free = ["VTV1", "ANTV", "QPVN", "HTV7", "HTV9", "VIETNAM TODAY"];
+                        const free = ["VTV1", "VTV2", "VTV3", "ANTV", "QPVN"];
                         vip = !free.some(k => nU.includes(k));
                     }
+                    else if (nU.includes("HBO") || nU.includes("FOX") || nU.includes("CINEMA")) {
+                        g = "QUỐC TẾ";
+                        vip = true;
+                    }
+
                     cur = { n: name, u: "", l: logo, g: g, v: vip };
-                } else if (line.startsWith('http') && cur) {
+                } else if (line.trim().startsWith('http') && cur) {
                     cur.u = line.trim();
-                    vnChannels.push(cur);
+                    if (cur.g === "QUỐC TẾ") intChannels.push(cur);
+                    else vnChannels.push(cur);
                     cur = null;
                 }
             });
-        } catch(e) {}
-        allData = [...vnChannels, ...FIXED_INT];
+            
+            // Kết hợp dữ liệu: Quốc tế ở cuối
+            allData = [...vnChannels, ...intChannels];
+            render();
+            if(allData.length > 0) play(0);
+            
+        } catch(e) {
+            console.error("Lỗi tải dữ liệu m3u:", e);
+            document.getElementById('list').innerHTML = "<p style='padding:20px'>Không thể tải danh sách kênh.</p>";
+        }
     }
 
     async function play(idx) {
-        curIdx = idx; render();
+        curIdx = idx; 
+        render();
         const ch = allData[idx];
-        if (ch.i && ch.k) {
-            player.configure({ drm: { clearKeys: { [toHex(ch.i)]: toHex(ch.k) } } });
-        } else {
-            player.configure({ drm: { clearKeys: {} } });
-        }
+        if (!ch) return;
+
         try {
+            if (ch.i && ch.k) {
+                player.configure({ drm: { clearKeys: { [toHex(ch.i)]: toHex(ch.k) } } });
+            } else {
+                player.configure({ drm: { clearKeys: {} } });
+            }
             await player.load(ch.u);
             video.play();
         } catch (e) {
+            // Fallback cho link HLS thường nếu Shaka lỗi
             if (ch.u.includes('.m3u8')) {
-                video.src = ch.u; video.play();
+                video.src = ch.u; 
+                video.play();
             }
         }
     }
@@ -132,7 +156,9 @@
         const box = document.getElementById('list');
         box.innerHTML = "";
         allData.forEach((ch, i) => {
-            if (curTab !== 'ALL' && ch.g !== curTab) return;
+            // Lọc theo Tab (Nếu Tab là ALL thì hiện hết)
+            if (curTab !== 'ALL' && ch.g.toUpperCase() !== curTab.toUpperCase()) return;
+            
             const div = document.createElement('div');
             div.className = `item ${curIdx === i ? 'active' : ''}`;
             div.innerHTML = `
@@ -151,7 +177,8 @@
         btn.classList.add('active');
         render();
     }
-    start();
+
+    window.onload = start;
 </script>
 </body>
 </html>
