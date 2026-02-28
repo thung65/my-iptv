@@ -95,18 +95,15 @@
                     let g = "ĐỊA PHƯƠNG", vip = false;
                     
                     // Logic Phân loại
-                    if (nU.includes("VTVCAB") || nU.includes("ON ")) { g = "VTVCab"; vip = true; }
-                    else if (nU.includes("SCTV")) { g = "SCTV"; vip = true; }
-                    else if (nU.includes("HTVC")) { g = "HTVC"; vip = true; }
+                    if (nU.includes("VTVCAB") || nU.includes("ON ")) { g = "VTVCab";}
+                    else if (nU.includes("SCTV")) { g = "SCTV"; }
+                    else if (nU.includes("HTVC")) { g = "HTVC"; }
                     else if (nU.includes("HTV")) { g = "HTV"; }
                     else if (nU.includes("VTV") || nU.includes("ANTV") || nU.includes("QPVN")) {
-                        g = "VTV";
-                        const free = ["VTV1", "VTV2", "VTV3", "ANTV", "QPVN"];
-                        vip = !free.some(k => nU.includes(k));
                     }
                     else if (nU.includes("HBO") || nU.includes("FOX") || nU.includes("CINEMA")) {
                         g = "QUỐC TẾ";
-                        vip = true;
+                        vip = false;
                     }
 
                     cur = { n: name, u: "", l: logo, g: g, v: vip };
