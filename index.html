@@ -85,7 +85,7 @@
                     const international = ["HBO", "FOX", "AXN", "CINEMA", "DISNEY", "DISCOVERY", "NAT GEO", "KIX"];
 
                     if (essential.some(k => nU.includes(k))) g = "THIẾT YẾU";
-                    else if (international.some(k => nU.includes(k))) g = "QUỐC TẾ";
+                    else if (nU.includes("Quốc Tế") g = "QUỐC TẾ";
                     else if (nU.includes("VTVCAB") || nU.includes("ON ")) g = "VTVCAB";
                     else if (nU.includes("SCTV")) g = "SCTV";
                     else if (nU.includes("HTVC")) g = "HTVC";
