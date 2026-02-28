@@ -14,7 +14,7 @@
         body { margin: 0; background: var(--bg); color: #fff; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
         #video-box { width: 100%; max-width: 960px; margin: 0 auto; background: #000; aspect-ratio: 16/9; position: sticky; top: 0; z-index: 99; }
         video { width: 100%; height: 100%; }
-        .tabs { display: flex; overflow-x: auto; background: #111; padding: 10px; gap: 8px; border-bottom: 1px solid #222; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+        .tabs { display: flex; overflow-x: auto; background: #111; padding: 10px; gap: 8px; border-bottom: 1px solid #222; scrollbar-width: none; }
         .tabs button { padding: 8px 15px; border: none; border-radius: 20px; background: #222; color: #888; white-space: nowrap; font-size: 11px; font-weight: bold; cursor: pointer; }
         .tabs button.active { background: var(--gold); color: #000; }
         #list { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; padding: 15px; overflow-y: auto; flex: 1; }
@@ -33,14 +33,14 @@
 
 <div class="tabs">
     <button class="active" onclick="setTab('ALL', this)">TẤT CẢ</button>
+    <button onclick="setTab('THIẾT YẾU', this)">🌐| Thiết yếu</button>
     <button onclick="setTab('VTV', this)">VTV</button>
-    <button onclick="setTab('🌐| Thiết yếu', this)">🌐| Thiết yếu</button>
     <button onclick="setTab('VTVCab', this)">VTVCab</button>
     <button onclick="setTab('HTV', this)">HTV</button>
     <button onclick="setTab('HTVC', this)">HTVC</button> 
     <button onclick="setTab('SCTV', this)">SCTV</button>
-    <button onclick="setTab('Địa Phương', this)">Địa Phương</button>
-    <button onclick="setTab('Quốc Tế', this)">Quốc Tế</button>
+    <button onclick="setTab('ĐỊA PHƯƠNG', this)">Địa Phương</button>
+    <button onclick="setTab('QUỐC TẾ', this)">Quốc Tế</button>
 </div>
 
 <div id="list"></div>
@@ -63,42 +63,46 @@
     }
 
     async function load() {
-        let channels = [];
+        let vnChannels = [];
         let intChannels = [];
         
         try {
-            const r = await fetch(GITHUB_URL);
-            const t = await r.text();
-            let ext = [], cur = null;
-            t.split('\n').forEach(l => {
-                l = l.trim();
-                if (l.startsWith('#EXTINF')) {
-                    const n = l.split(',')[1] || "";
+            const r = await fetch(GITHUB);
+            const txt = await r.text();
+            let cur = null;
+            
+            txt.split('\n').forEach(line => {
+                line = line.trim();
+                if (line.startsWith('#EXTINF')) {
+                    const name = line.split(',')[1]?.trim() || "Kênh";
+                    const nU = name.toUpperCase();
+                    let logo = line.match(/tvg-logo="([^"]+)"/i)?.[1] || "";
+
                     let g = "ĐỊA PHƯƠNG";
-                    if (n.includes("VTVCAB")) g = "VTVCAB";
-                    else if (n.includes("HTV")) g = "HTV";
-                    cur = { n, u: "", l: l.match(/tvg-logo="([^"]+)"/i)?.[1] || "", g };
-                } else if (l.startsWith('http') && cur) {
-                    cur.u = l; ext.push(cur); cur = null;
-                }
-            });
-            allData = [...FIXED_CHANNELS, ...ext].filter((v,i,a) => a.findIndex(x => x.u === v.u) === i);
-            render();
-            if(allData.length > 0) play(allData[0]);
-        } catch(e) {}
-    }
+                    
+                    // Phân loại logic
+                    const essential = ["VTV1", "VTV2", "VTV3", "VTV4", "VTV5", "VTV6", "VTV7", "VTV8", "VTV9", "HTV7", "HTV9", "THVL", "VĨNH LONG", "ANTV", "QPVN"];
+                    const international = ["HBO", "FOX", "AXN", "CINEMA", "DISNEY", "DISCOVERY", "NAT GEO", "KIX"];
+
+                    if (essential.some(k => nU.includes(k))) g = "THIẾT YẾU";
+                    else if (international.some(k => nU.includes(k))) g = "QUỐC TẾ";
+                    else if (nU.includes("VTVCAB") || nU.includes("ON ")) g = "VTVCAB";
+                    else if (nU.includes("SCTV")) g = "SCTV";
+                    else if (nU.includes("HTVC")) g = "HTVC";
+                    else if (nU.includes("HTV")) g = "HTV";
+                    else if (nU.includes("VTV")) g = "VTV";
 
                     cur = { n: name, u: "", l: logo, g: g };
-                } else if (line.trim().startsWith('http') && cur) {
-                    cur.u = line.trim();
+                } else if (line.startsWith('http') && cur) {
+                    cur.u = line;
                     if (cur.g === "QUỐC TẾ") intChannels.push(cur);
-                    else channels.push(cur);
+                    else vnChannels.push(cur);
                     cur = null;
                 }
             });
             
-            // TẤT CẢ ở đầu (mặc định), QUỐC TẾ ở cuối
-            allData = [...channels, ...intChannels];
+            // TẤT CẢ bao gồm mọi thứ, QUỐC TẾ nằm ở cuối mảng dữ liệu
+            allData = [...vnChannels, ...intChannels];
             render();
             if(allData.length > 0) play(0);
             
@@ -108,10 +112,10 @@
     }
 
     async function play(idx) {
+        if (idx < 0 || idx >= allData.length) return;
         curIdx = idx; 
         render();
         const ch = allData[idx];
-        if (!ch) return;
 
         try {
             await player.load(ch.u);
@@ -127,8 +131,11 @@
     function render() {
         const box = document.getElementById('list');
         box.innerHTML = "";
+        
         allData.forEach((ch, i) => {
-            if (curTab !== 'ALL' && ch.g.toUpperCase() !== curTab.toUpperCase()) return;
+            // So sánh Group (không phân biệt hoa thường)
+            const isMatch = (curTab === 'ALL') || (ch.g.toUpperCase() === curTab.toUpperCase());
+            if (!isMatch) return;
             
             const div = document.createElement('div');
             div.className = `item ${curIdx === i ? 'active' : ''}`;
@@ -142,7 +149,10 @@
     }
 
     function setTab(t, btn) {
-        curTab = t;
+        // Xử lý tên tab đặc biệt
+        if (t.includes('Thiết yếu')) curTab = 'THIẾT YẾU';
+        else curTab = t;
+
         document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         render();
