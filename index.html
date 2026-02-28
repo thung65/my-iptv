@@ -33,14 +33,14 @@
 
 <div class="tabs">
     <button class="active" onclick="setTab('ALL', this)">TẤT CẢ</button>
-    <button onclick="setTab('THIẾT YẾU', this)">THIẾT YẾU</button>
     <button onclick="setTab('VTV', this)">VTV</button>
+    <button onclick="setTab('🌐| Thiết yếu', this)">🌐| Thiết yếu</button>
     <button onclick="setTab('VTVCab', this)">VTVCab</button>
     <button onclick="setTab('HTV', this)">HTV</button>
     <button onclick="setTab('HTVC', this)">HTVC</button> 
     <button onclick="setTab('SCTV', this)">SCTV</button>
-    <button onclick="setTab('ĐỊA PHƯƠNG', this)">ĐỊA PHƯƠNG</button>
-    <button onclick="setTab('QUỐC TẾ', this)">QUỐC TẾ</button>
+    <button onclick="setTab('Địa Phương', this)">Địa Phương</button>
+    <button onclick="setTab('Quốc Tế', this)">Quốc Tế</button>
 </div>
 
 <div id="list"></div>
@@ -67,35 +67,26 @@
         let intChannels = [];
         
         try {
-            const r = await fetch(GITHUB);
-            const txt = await r.text();
-            let cur = null;
-            
-            txt.split('\n').forEach(line => {
-                if (line.includes('#EXTINF')) {
-                    const name = line.split(',')[1]?.trim() || "Kênh";
-                    const nU = name.toUpperCase();
-                    let logoMatch = line.match(/(?:tvg-logo|logo|tvg-logo-url)="([^"]+)"/i);
-                    let logo = logoMatch ? logoMatch[1] : "";
-
+            const r = await fetch(GITHUB_URL);
+            const t = await r.text();
+            let ext = [], cur = null;
+            t.split('\n').forEach(l => {
+                l = l.trim();
+                if (l.startsWith('#EXTINF')) {
+                    const n = l.split(',')[1] || "";
                     let g = "ĐỊA PHƯƠNG";
-                    
-                    // Logic Phân loại mới
-                    } else if (nU.includes("🌐| Thiết yếu ")) {
-                        g = "🌐| Thiết yếu";
-                    } else if (nU.includes("VTVCAB") || nU.includes("ON ")) {
-                        g = "VTVCab";
-                    } else if (nU.includes("SCTV")) {
-                        g = "SCTV";
-                    } else if (nU.includes("HTVC")) {
-                        g = "HTVC";
-                    } else if (nU.includes("HTV")) {
-                        g = "HTV";
-                    } else if (nU.includes("VTV")) {
-                        g = "VTV";
-                    } else if (nU.includes("HBO") || nU.includes("FOX") || nU.includes("AXN") || nU.includes("CINEMA") || nU.includes("DISCOVERY")) {
-                        g = "QUỐC TẾ";
-                    }
+                    if (n.includes("VTVCAB")) g = "VTVCAB";
+                    else if (n.includes("HTV")) g = "HTV";
+                    cur = { n, u: "", l: l.match(/tvg-logo="([^"]+)"/i)?.[1] || "", g };
+                } else if (l.startsWith('http') && cur) {
+                    cur.u = l; ext.push(cur); cur = null;
+                }
+            });
+            allData = [...FIXED_CHANNELS, ...ext].filter((v,i,a) => a.findIndex(x => x.u === v.u) === i);
+            render();
+            if(allData.length > 0) play(allData[0]);
+        } catch(e) {}
+    }
 
                     cur = { n: name, u: "", l: logo, g: g };
                 } else if (line.trim().startsWith('http') && cur) {
