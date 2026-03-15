@@ -3,148 +3,141 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IPTV FIX LIST</title>
+    <title>SAMSUNG TV LITE</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
-        :root { --accent: #00e5ff; --bg: #121212; }
-        body { margin: 0; background: #000; color: white; font-family: sans-serif; }
-        #player-box { position: fixed; inset: 0; background: #000; z-index: 1; }
+        body { margin: 0; background: #000; color: #fff; font-family: sans-serif; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
+        #video-box { width: 100%; aspect-ratio: 16/9; background: #000; }
         video { width: 100%; height: 100%; }
-        .btn-menu { position: absolute; top: 20px; left: 20px; z-index: 100; background: var(--accent); border: none; padding: 15px 30px; font-weight: bold; border-radius: 5px; cursor: pointer; font-size: 1.1rem; }
-        #sidebar { position: fixed; left: 0; top: 0; width: 450px; height: 100%; background: rgba(20,20,20,0.98); z-index: 200; transform: translateX(-100%); transition: 0.3s; display: flex; flex-direction: column; border-right: 2px solid var(--accent); }
-        #sidebar.open { transform: translateX(0); }
-        .tabs { display: flex; overflow-x: auto; padding: 15px; gap: 10px; background: #1a1a1a; border-bottom: 1px solid #333; }
-        .tab { padding: 10px 20px; background: #333; border-radius: 4px; white-space: nowrap; cursor: pointer; }
-        .tab.active { background: var(--accent); color: #000; font-weight: bold; }
-        .list { flex: 1; overflow-y: auto; padding: 15px; }
-        .item { display: flex; align-items: center; gap: 15px; padding: 15px; background: #1a1a1a; margin-bottom: 10px; border-radius: 8px; cursor: pointer; border: 2px solid transparent; transition: 0.2s; }
-        .item:hover, .item:focus { border-color: var(--accent); background: #252525; outline: none; }
-        .item img { width: 70px; height: 45px; object-fit: contain; background: white; border-radius: 4px; }
-        .item span { font-size: 1.1rem; font-weight: bold; }
-        @media (max-width: 600px) { #sidebar { width: 100%; } }
+        .tabs { display: flex; overflow-x: auto; background: #111; padding: 5px; gap: 5px; scrollbar-width: none; }
+        .tabs button { padding: 8px 15px; border: none; background: #222; color: #ccc; font-size: 12px; cursor: pointer; border-radius: 2px; white-space: nowrap; }
+        .tabs button.active { background: #ffcc00; color: #000; font-weight: bold; }
+        #list { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; padding: 10px; overflow-y: auto; flex: 1; }
+        .item { background: #151515; padding: 8px 3px; text-align: center; border: 1px solid #222; cursor: pointer; }
+        .item.active { border-color: #ffcc00; background: #222; }
+        .item img { height: 30px; max-width: 80%; object-fit: contain; margin-bottom: 4px; }
+        .item span { font-size: 10px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     </style>
 </head>
 <body>
 
-<button class="btn-menu" onclick="toggleMenu()">DANH SÁCH KÊNH</button>
+<div id="video-box"><video id="video" controls autoplay playsinline></video></div>
 
-<div id="sidebar">
-    <div style="padding: 30px 20px 10px; color: var(--accent); font-size: 1.5rem; font-weight: bold;">IPTV VIỆT NAM</div>
-    <div class="tabs" id="tabs"></div>
-    <div class="list" id="list"></div>
+<div class="tabs">
+    <button class="active" onclick="setTab('ALL', this)">TẤT CẢ</button>
+    <button onclick="setTab('VTV', this)">VTV</button>
+    <button onclick="setTab('SCTV', this)">SCTV</button>
+    <button onclick="setTab('VTVCAB', this)">VTVCAB</button>
+    <button onclick="setTab('HTV', this)">HTV/HTVC</button>
+    <button onclick="setTab('ĐỊA PHƯƠNG', this)">ĐỊA PHƯƠNG</button>
+    <button onclick="setTab('QUỐC TẾ', this)">QUỐC TẾ</button>
 </div>
 
-<div id="player-box">
-    <video id="video" controls autoplay playsinline></video>
-</div>
+<div id="list"></div>
 
 <script>
-    // Proxy mạnh mẽ nhất để tải file từ GitHub không bị chặn
-    const M3U_RAW = 'https://raw.githubusercontent.com/thung65/Iptv-vietnam/main/ducnt123';
-    const PROXY = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(M3U_RAW);
-    
-    let allChannels = [];
-    let currentShaka;
+    const GITHUB_URL = "https://raw.githubusercontent.com/thung65/Iptv-vietnam/main/ducnt123";
+    let video = document.getElementById('video'), player, allData = [], curTab = "ALL";
+
+    function toHex(val) {
+        if (!val || val.length === 32) return val;
+        try {
+            return Array.from(atob(val.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0).toString(16).padStart(2,'0')).join('');
+        } catch(e) { return val; }
+    }
 
     async function start() {
-        try {
-            const res = await fetch(PROXY);
-            const data = await res.text();
-            if (!data || data.length < 10) throw "Dữ liệu trống";
-            parse(data);
-        } catch (e) {
-            document.getElementById('list').innerHTML = '<div style="color:red; padding:20px;">Lỗi tải danh sách. Hãy nhấn F5 hoặc tải lại trang.</div>';
-        }
-    }
-
-    function parse(content) {
-        const lines = content.split('\n');
-        let cur = null;
-        const groupSet = new Set(['TẤT CẢ']);
-
-        lines.forEach(line => {
-            line = line.trim();
-            if (line.startsWith('#EXTINF')) {
-                const name = line.split(',')[1] || "Kênh";
-                const logo = line.match(/tvg-logo="([^"]+)"/)?.[1] || "";
-                const group = line.match(/group-title="([^"]+)"/)?.[1] || "Khác";
-                groupSet.add(group);
-                cur = { name, logo, group, license: "" };
-            } else if (line.includes('license_key=')) {
-                // Nhặt khóa ClearKey JSON ngay sát link
-                cur.license = line.split('license_key=')[1];
-            } else if (line.startsWith('http')) {
-                cur.url = line;
-                allChannels.push(cur);
-                cur = null;
-            }
-        });
-
-        renderTabs(Array.from(groupSet));
-        renderList('TẤT CẢ');
-        // Tự động phát kênh số 1
-        if (allChannels.length > 0) play(allChannels[0], false);
-    }
-
-    function renderTabs(arr) {
-        const box = document.getElementById('tabs');
-        // Sắp xếp: Tất cả đầu, Quốc tế cuối
-        arr.sort((a, b) => (a === 'TẤT CẢ' ? -1 : (a === 'Quốc Tế' ? 1 : a.localeCompare(b))));
-        arr.forEach(g => {
-            const t = document.createElement('div');
-            t.className = 'tab'; t.innerText = g;
-            t.onclick = () => {
-                document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
-                t.classList.add('active');
-                renderList(g);
-            };
-            box.appendChild(t);
-        });
-        box.firstChild.classList.add('active');
-    }
-
-    function renderList(group) {
-        const box = document.getElementById('list');
-        box.innerHTML = '';
-        const filtered = (group === 'TẤT CẢ') ? allChannels : allChannels.filter(c => c.group === group);
+        shaka.polyfill.installAll();
+        player = new shaka.Player(video);
         
-        filtered.forEach(c => {
-            const item = document.createElement('div');
-            item.className = 'item'; item.tabIndex = 0;
-            item.innerHTML = `<img src="${c.logo}"><span>${c.name}</span>`;
-            item.onclick = () => play(c, true);
-            item.onkeydown = (e) => { if(e.key === 'Enter') play(c, true); };
-            box.appendChild(item);
+        // Cấu hình giảm lag: Giảm thời gian chờ buffer
+        player.configure({
+            streaming: {
+                bufferingGoal: 5,
+                rebufferingGoal: 2,
+                bufferBehind: 10
+            }
+        });
+
+        try {
+            const r = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(GITHUB_URL));
+            const t = await r.text();
+            let ext = [], cur = null;
+            
+            t.split('\n').forEach(l => {
+                l = l.trim();
+                if (l.startsWith('#EXTINF')) {
+                    const name = l.split(',')[1] || "";
+                    let group = "ĐỊA PHƯƠNG";
+                    const n = name.toUpperCase();
+                    if (n.includes("VTVCAB")) group = "VTVCAB";
+                    else if (n.includes("SCTV")) group = "SCTV";
+                    else if (n.includes("VTV")) group = "VTV";
+                    else if (n.includes("HTV")) group = "HTV/HTVC";
+                    else if (n.includes("HBO") || n.includes("AXN") || n.includes("CNN")) group = "QUỐC TẾ";
+                    
+                    cur = { n: name, u: "", l: l.match(/tvg-logo="([^"]+)"/i)?.[1] || "", g: group, i: "", k: "" };
+                } else if (l.includes('license_key=')) {
+                    try {
+                        const drmData = JSON.parse(l.split('license_key=')[1]);
+                        cur.i = drmData.keys[0].kid; cur.k = drmData.keys[0].k;
+                    } catch(e) {}
+                } else if (l.startsWith('http')) {
+                    if (cur) { cur.u = l; ext.push(cur); cur = null; }
+                }
+            });
+
+            allData = ext;
+            render();
+            if(allData.length > 0) play(allData[0]);
+        } catch(e) {}
+    }
+
+    async function play(ch) {
+        await player.unload();
+        if (ch.i && ch.k) {
+            let drmConfig = {};
+            drmConfig[toHex(ch.i)] = toHex(ch.k);
+            player.configure({ drm: { clearKeys: drmConfig } });
+        } else {
+            player.configure({ drm: { clearKeys: {} } });
+        }
+
+        try {
+            if (ch.u.includes('.mpd')) {
+                await player.load(ch.u);
+            } else {
+                video.src = ch.u;
+            }
+            video.play();
+        } catch (e) {}
+        
+        const items = document.querySelectorAll('.item');
+        items.forEach(el => {
+            el.classList.remove('active');
+            if(el.dataset.url === ch.u) el.classList.add('active');
         });
     }
 
-    function toggleMenu() {
-        document.getElementById('sidebar').classList.toggle('open');
+    function render() {
+        const box = document.getElementById('list');
+        box.innerHTML = "";
+        allData.forEach(ch => {
+            if (curTab !== 'ALL' && ch.g !== curTab) return;
+            const div = document.createElement('div');
+            div.className = 'item';
+            div.dataset.url = ch.u;
+            div.innerHTML = `<img src="${ch.l}" loading="lazy"><span>${ch.n}</span>`;
+            div.onclick = () => play(ch);
+            box.appendChild(div);
+        });
     }
 
-    async function play(ch, hideMenu) {
-        const v = document.getElementById('video');
-        if (hideMenu) toggleMenu();
-        if (currentShaka) await currentShaka.destroy();
-
-        if (ch.url.includes('.mpd')) {
-            shaka.polyfill.installAll();
-            currentShaka = new shaka.Player(v);
-            if (ch.license) {
-                try {
-                    const keyObj = JSON.parse(ch.license);
-                    const clearKeys = {};
-                    keyObj.keys.forEach(k => { clearKeys[k.kid] = k.k; });
-                    currentShaka.configure({ drm: { clearKeys: clearKeys } });
-                } catch (e) {}
-            }
-            await currentShaka.load(ch.url);
-        } else {
-            if (Hls.isSupported()) {
-                const hls = new Hls(); hls.loadSource(ch.url); hls.attachMedia(v);
-            } else { v.src = ch.url; }
-        }
+    function setTab(t, btn) {
+        curTab = t;
+        document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        render();
     }
 
     start();
