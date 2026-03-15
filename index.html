@@ -3,19 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SAMSUNG TV - FIX LIST & HEX DRM</title>
+    <title>SAMSUNG TV - MPD & HEX FIXED</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: sans-serif; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
         #video-box { width: 100%; aspect-ratio: 16/9; background: #000; border-bottom: 2px solid #ffcc00; }
-        video { width: 100%; height: 100%; outline: none; }
+        video { width: 100%; height: 100%; }
         .tabs { display: flex; overflow-x: auto; background: #111; padding: 10px; gap: 8px; border-bottom: 1px solid #333; scrollbar-width: none; }
         .tabs button { padding: 10px 18px; border: none; background: #222; color: #999; font-weight: bold; border-radius: 4px; white-space: nowrap; }
         .tabs button.active { background: #ffcc00; color: #000; }
         #list { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; padding: 12px; overflow-y: auto; flex: 1; }
         .item { background: #111; padding: 10px 5px; text-align: center; border: 1px solid #222; border-radius: 6px; cursor: pointer; }
         .item.active { border-color: #ffcc00; background: #1a1a00; }
-        .item img { height: 35px; max-width: 90%; margin-bottom: 5px; background: #fff; border-radius: 2px; object-fit: contain; }
+        .item img { height: 35px; max-width: 90%; margin-bottom: 5px; background: #fff; border-radius: 2px; }
         .item span { font-size: 10px; display: block; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     </style>
 </head>
@@ -43,7 +43,7 @@
 
     function hexToUint8(hex) {
         if (!hex) return null;
-        const clean = hex.replace(/[^0-9a-fA-F]/g, '');
+        const clean = hex.replace(/[^0-9a-fA-F]/g, '').toLowerCase();
         const res = new Uint8Array(clean.length / 2);
         for (let i = 0; i < clean.length; i += 2) {
             res[i / 2] = parseInt(clean.substring(i, i + 2), 16);
@@ -54,25 +54,30 @@
     async function init() {
         shaka.polyfill.installAll();
         player = new shaka.Player(video);
-        player.configure({ streaming: { jumpLargeGaps: true } });
-        loadM3U();
+        
+        // Cấu hình Shaka cực kỳ quan trọng cho Samsung TV
+        player.configure({
+            streaming: { jumpLargeGaps: true, bufferingGoal: 30 },
+            drm: { clearKeys: {} }
+        });
+
+        loadData();
     }
 
-    async function loadM3U() {
+    async function loadData() {
         try {
             const r = await fetch(PROXY + encodeURIComponent(GITHUB_URL));
             const t = await r.text();
-            if (!t) throw new Error();
             parse(t);
-        } catch (e) { document.getElementById('list').innerHTML = "<p style='padding:20px'>Lỗi tải danh sách từ GitHub</p>"; }
+        } catch (e) { console.error("Lỗi GitHub"); }
     }
 
     function parse(data) {
         const lines = data.split('\n');
         let channels = [], cur = null;
 
-        for (let i = 0; i < lines.length; i++) {
-            let l = lines[i].trim();
+        for (let l of lines) {
+            l = l.trim();
             if (l.startsWith('#EXTINF')) {
                 const name = l.split(',')[1] || "Kênh";
                 let g = "ĐỊA PHƯƠNG", n = name.toUpperCase();
@@ -85,9 +90,9 @@
                 cur = { n: name, u: "", l: l.match(/tvg-logo="([^"]+)"/i)?.[1] || "", g, kid: "", key: "" };
             } else if (l.includes('license_key=')) {
                 try {
-                    const json = JSON.parse(l.split('license_key=')[1]);
-                    cur.kid = json.keys[0].kid;
-                    cur.key = json.keys[0].k;
+                    const drm = JSON.parse(l.split('license_key=')[1]);
+                    cur.kid = drm.keys[0].kid;
+                    cur.key = drm.keys[0].k;
                 } catch (e) {}
             } else if (l.startsWith('http')) {
                 if (cur) { cur.u = l; channels.push(cur); cur = null; }
@@ -99,21 +104,41 @@
     }
 
     async function play(ch) {
+        // Reset trình phát
         await player.unload();
-        video.src = "";
+        video.removeAttribute('src');
+        video.load();
 
-        if (ch.kid && ch.key) {
-            const kid = ch.kid.replace(/[^0-9a-fA-F]/g, '').toLowerCase();
-            const key = hexToUint8(ch.key);
+        const isMPD = ch.u.includes('.mpd');
+
+        if (isMPD && ch.kid && ch.key) {
+            // Xử lý MPD có DRM (VTV Prime/TV360)
+            const cleanKid = ch.kid.replace(/[^0-9a-fA-F]/g, '').toLowerCase();
+            const keyUint8 = hexToUint8(ch.key);
+            
             let drm = {};
-            drm[kid] = key;
+            drm[cleanKid] = keyUint8;
+            
             player.configure({ drm: { clearKeys: drm } });
-            try { await player.load(ch.u); } catch (e) {
+            try {
+                await player.load(ch.u);
+            } catch (e) {
+                // Thử qua Proxy nếu lỗi
                 try { await player.load(PROXY + encodeURIComponent(ch.u)); } catch(e2) {}
             }
         } else {
+            // Xử lý m3u8 hoặc link không DRM (Chạy trực tiếp cho mượt)
             player.configure({ drm: { clearKeys: {} } });
-            video.src = ch.u;
+            if (isMPD) {
+                // MPD không Key vẫn dùng Shaka
+                try { await player.load(ch.u); } catch(e) {}
+            } else {
+                // Link m3u8 dùng trình phát gốc của TV
+                video.src = ch.u;
+                video.play().catch(() => {
+                    video.src = PROXY + encodeURIComponent(ch.u);
+                });
+            }
         }
         render(ch.u);
     }
@@ -121,9 +146,8 @@
     function render(activeUrl = "") {
         const box = document.getElementById('list');
         box.innerHTML = "";
-        const filtered = allData.filter(ch => curTab === 'ALL' || ch.g === curTab);
-        
-        filtered.forEach(ch => {
+        allData.forEach(ch => {
+            if (curTab !== 'ALL' && ch.g !== curTab) return;
             const div = document.createElement('div');
             div.className = `item ${ch.u === activeUrl ? 'active' : ''}`;
             div.innerHTML = `<img src="${ch.l}" onerror="this.src='https://via.placeholder.com/50?text=TV'"><span>${ch.n}</span>`;
@@ -138,6 +162,7 @@
         btn.classList.add('active');
         render();
     }
+
     init();
 </script>
 </body>
