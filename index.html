@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IPTV SAMSUNG - DYNAMIC HEX DRM</title>
+    <title>SAMSUNG TV - FIX LIST & HEX DRM</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: sans-serif; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
         #video-box { width: 100%; aspect-ratio: 16/9; background: #000; border-bottom: 2px solid #ffcc00; }
         video { width: 100%; height: 100%; outline: none; }
         .tabs { display: flex; overflow-x: auto; background: #111; padding: 10px; gap: 8px; border-bottom: 1px solid #333; scrollbar-width: none; }
-        .tabs button { padding: 10px 18px; border: none; background: #222; color: #999; font-weight: bold; border-radius: 4px; white-space: nowrap; cursor: pointer; }
+        .tabs button { padding: 10px 18px; border: none; background: #222; color: #999; font-weight: bold; border-radius: 4px; white-space: nowrap; }
         .tabs button.active { background: #ffcc00; color: #000; }
         #list { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; padding: 12px; overflow-y: auto; flex: 1; }
         .item { background: #111; padding: 10px 5px; text-align: center; border: 1px solid #222; border-radius: 6px; cursor: pointer; }
@@ -41,13 +41,12 @@
     
     let video = document.getElementById('video'), player, allData = [], curTab = "ALL";
 
-    // Hàm quan trọng: Ép kiểu Hex sang mảng dữ liệu để Tivi Samsung chấp nhận
     function hexToUint8(hex) {
-        if (!hex) return new Uint8Array();
-        const cleanHex = hex.replace(/[^0-9a-fA-F]/g, '');
-        const res = new Uint8Array(cleanHex.length / 2);
-        for (let i = 0; i < cleanHex.length; i += 2) {
-            res[i / 2] = parseInt(cleanHex.substring(i, i + 2), 16);
+        if (!hex) return null;
+        const clean = hex.replace(/[^0-9a-fA-F]/g, '');
+        const res = new Uint8Array(clean.length / 2);
+        for (let i = 0; i < clean.length; i += 2) {
+            res[i / 2] = parseInt(clean.substring(i, i + 2), 16);
         }
         return res;
     }
@@ -55,7 +54,7 @@
     async function init() {
         shaka.polyfill.installAll();
         player = new shaka.Player(video);
-        player.configure({ streaming: { jumpLargeGaps: true, bufferingGoal: 10 } });
+        player.configure({ streaming: { jumpLargeGaps: true } });
         loadM3U();
     }
 
@@ -63,38 +62,33 @@
         try {
             const r = await fetch(PROXY + encodeURIComponent(GITHUB_URL));
             const t = await r.text();
-            parseM3U(t);
-        } catch (e) { console.error("Lỗi tải danh sách"); }
+            if (!t) throw new Error();
+            parse(t);
+        } catch (e) { document.getElementById('list').innerHTML = "<p style='padding:20px'>Lỗi tải danh sách từ GitHub</p>"; }
     }
 
-    function parseM3U(data) {
+    function parse(data) {
         const lines = data.split('\n');
         let channels = [], cur = null;
 
-        for (let l of lines) {
-            l = l.trim();
+        for (let i = 0; i < lines.length; i++) {
+            let l = lines[i].trim();
             if (l.startsWith('#EXTINF')) {
                 const name = l.split(',')[1] || "Kênh";
                 let g = "ĐỊA PHƯƠNG", n = name.toUpperCase();
-                
-                // Phân loại nhóm kênh
                 if (n.includes("VTVCAB")) g = "VTVCAB";
                 else if (n.includes("SCTV")) g = "SCTV";
                 else if (n.includes("VTV")) g = "VTV";
                 else if (n.includes("HTV")) g = "HTV";
-                else if (n.includes("HBO") || n.includes("AXN") || n.includes("CNN") || n.includes("BCC")) g = "QUỐC TẾ";
+                else if (n.includes("HBO") || n.includes("AXN") || n.includes("CNN")) g = "QUỐC TẾ";
 
                 cur = { n: name, u: "", l: l.match(/tvg-logo="([^"]+)"/i)?.[1] || "", g, kid: "", key: "" };
             } else if (l.includes('license_key=')) {
                 try {
-                    // Bóc tách JSON để lấy Key Hex riêng cho từng kênh TV360/VTV Prime
-                    const drmPart = l.split('license_key=')[1];
-                    const drm = JSON.parse(drmPart);
-                    if (drm && drm.keys && drm.keys[0]) {
-                        cur.kid = drm.keys[0].kid;
-                        cur.key = drm.keys[0].k;
-                    }
-                } catch (e) { console.error("Lỗi đọc Key Hex"); }
+                    const json = JSON.parse(l.split('license_key=')[1]);
+                    cur.kid = json.keys[0].kid;
+                    cur.key = json.keys[0].k;
+                } catch (e) {}
             } else if (l.startsWith('http')) {
                 if (cur) { cur.u = l; channels.push(cur); cur = null; }
             }
@@ -106,29 +100,20 @@
 
     async function play(ch) {
         await player.unload();
-        video.removeAttribute('src');
+        video.src = "";
 
         if (ch.kid && ch.key) {
-            // Nạp đúng cặp Key Hex riêng của kênh được chọn
-            const cleanKid = ch.kid.replace(/[^0-9a-fA-F]/g, '').toLowerCase();
-            const keyBuffer = hexToUint8(ch.key);
-            
-            let drmConfig = {};
-            drmConfig[cleanKid] = keyBuffer;
-            
-            player.configure({ drm: { clearKeys: drmConfig } });
-            
-            try {
-                await player.load(ch.u);
-            } catch (e) {
-                // Thử qua Proxy nếu luồng bị server chặn trực tiếp trên Tivi
+            const kid = ch.kid.replace(/[^0-9a-fA-F]/g, '').toLowerCase();
+            const key = hexToUint8(ch.key);
+            let drm = {};
+            drm[kid] = key;
+            player.configure({ drm: { clearKeys: drm } });
+            try { await player.load(ch.u); } catch (e) {
                 try { await player.load(PROXY + encodeURIComponent(ch.u)); } catch(e2) {}
             }
         } else {
-            // Cho các link không có bản quyền DRM
             player.configure({ drm: { clearKeys: {} } });
             video.src = ch.u;
-            video.play().catch(() => { video.src = PROXY + encodeURIComponent(ch.u); });
         }
         render(ch.u);
     }
@@ -136,8 +121,9 @@
     function render(activeUrl = "") {
         const box = document.getElementById('list');
         box.innerHTML = "";
-        allData.forEach(ch => {
-            if (curTab !== 'ALL' && ch.g !== curTab) return;
+        const filtered = allData.filter(ch => curTab === 'ALL' || ch.g === curTab);
+        
+        filtered.forEach(ch => {
             const div = document.createElement('div');
             div.className = `item ${ch.u === activeUrl ? 'active' : ''}`;
             div.innerHTML = `<img src="${ch.l}" onerror="this.src='https://via.placeholder.com/50?text=TV'"><span>${ch.n}</span>`;
@@ -152,7 +138,6 @@
         btn.classList.add('active');
         render();
     }
-
     init();
 </script>
 </body>
