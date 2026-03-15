@@ -3,20 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SAMSUNG TV LITE</title>
+    <title>IPTV PROXY SYSTEM</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: sans-serif; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
         #video-box { width: 100%; aspect-ratio: 16/9; background: #000; }
         video { width: 100%; height: 100%; }
-        .tabs { display: flex; overflow-x: auto; background: #111; padding: 5px; gap: 5px; scrollbar-width: none; }
-        .tabs button { padding: 8px 15px; border: none; background: #222; color: #ccc; font-size: 12px; cursor: pointer; border-radius: 2px; white-space: nowrap; }
-        .tabs button.active { background: #ffcc00; color: #000; font-weight: bold; }
-        #list { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; padding: 10px; overflow-y: auto; flex: 1; }
-        .item { background: #151515; padding: 8px 3px; text-align: center; border: 1px solid #222; cursor: pointer; }
-        .item.active { border-color: #ffcc00; background: #222; }
-        .item img { height: 30px; max-width: 80%; object-fit: contain; margin-bottom: 4px; }
-        .item span { font-size: 10px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .tabs { display: flex; overflow-x: auto; background: #111; padding: 10px; gap: 8px; border-bottom: 1px solid #333; scrollbar-width: none; }
+        .tabs button { padding: 10px 18px; border: none; background: #222; color: #999; font-size: 13px; font-weight: bold; cursor: pointer; border-radius: 4px; white-space: nowrap; }
+        .tabs button.active { background: #ffcc00; color: #000; }
+        #list { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; padding: 12px; overflow-y: auto; flex: 1; }
+        .item { background: #111; padding: 12px 5px; text-align: center; border: 1px solid #222; border-radius: 6px; cursor: pointer; }
+        .item.active { border-color: #ffcc00; background: #1a1a00; }
+        .item img { height: 35px; max-width: 90%; object-fit: contain; display: block; margin: 0 auto 5px; background: #fff; border-radius: 3px; }
+        .item span { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -36,7 +36,10 @@
 <div id="list"></div>
 
 <script>
-    const GITHUB_URL = "https://raw.githubusercontent.com/thung65/Iptv-vietnam/main/ducnt123";
+    // Web trung gian (Proxy) để tải file và xử lý luồng
+    const PROXY = "https://api.allorigins.win/raw?url=";
+    const M3U_URL = "https://raw.githubusercontent.com/thung65/Iptv-vietnam/main/ducnt123";
+    
     let video = document.getElementById('video'), player, allData = [], curTab = "ALL";
 
     function toHex(val) {
@@ -50,17 +53,9 @@
         shaka.polyfill.installAll();
         player = new shaka.Player(video);
         
-        // Cấu hình giảm lag: Giảm thời gian chờ buffer
-        player.configure({
-            streaming: {
-                bufferingGoal: 5,
-                rebufferingGoal: 2,
-                bufferBehind: 10
-            }
-        });
-
         try {
-            const r = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(GITHUB_URL));
+            // Ép tải file M3U qua trung gian hoàn toàn
+            const r = await fetch(PROXY + encodeURIComponent(M3U_URL));
             const t = await r.text();
             let ext = [], cur = null;
             
@@ -95,27 +90,34 @@
 
     async function play(ch) {
         await player.unload();
+        
+        // Cấu hình DRM qua trung gian nếu là MPD
         if (ch.i && ch.k) {
             let drmConfig = {};
             drmConfig[toHex(ch.i)] = toHex(ch.k);
             player.configure({ drm: { clearKeys: drmConfig } });
+            try {
+                await player.load(ch.u);
+            } catch (e) {
+                // Nếu Shaka lỗi, thử dùng trung gian proxy cho link
+                video.src = PROXY + encodeURIComponent(ch.u);
+            }
         } else {
             player.configure({ drm: { clearKeys: {} } });
+            // Với TV360, nếu chạy thẳng bị lag, ta ép nó qua trung gian
+            video.src = ch.u;
         }
-
-        try {
-            if (ch.u.includes('.mpd')) {
-                await player.load(ch.u);
-            } else {
-                video.src = ch.u;
-            }
-            video.play();
-        } catch (e) {}
         
+        video.play().catch(() => {
+             // Cú chót: Nếu vẫn không chạy, dùng Proxy trung gian bọc link video
+             video.src = PROXY + encodeURIComponent(ch.u);
+             video.play();
+        });
+
         const items = document.querySelectorAll('.item');
         items.forEach(el => {
             el.classList.remove('active');
-            if(el.dataset.url === ch.u) el.classList.add('active');
+            if(el.dataset.u === ch.u) el.classList.add('active');
         });
     }
 
@@ -126,7 +128,7 @@
             if (curTab !== 'ALL' && ch.g !== curTab) return;
             const div = document.createElement('div');
             div.className = 'item';
-            div.dataset.url = ch.u;
+            div.dataset.u = ch.u;
             div.innerHTML = `<img src="${ch.l}" loading="lazy"><span>${ch.n}</span>`;
             div.onclick = () => play(ch);
             box.appendChild(div);
