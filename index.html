@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SAMSUNG IPTV - GITHUB AUTO</title>
+    <title>SAMSUNG SMART TV IPTV</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mux.js/6.0.1/mux.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
@@ -12,22 +12,25 @@
         body { margin: 0; background: #000; color: #fff; font-family: sans-serif; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
         #video-box { width: 100%; aspect-ratio: 16/9; background: #000; border-bottom: 2px solid #ffcc00; position: relative; }
         video { width: 100%; height: 100%; outline: none; }
+        
+        /* Tabs sắp xếp theo yêu cầu */
         .tabs { display: flex; overflow-x: auto; background: #111; padding: 10px; gap: 8px; border-bottom: 1px solid #333; scrollbar-width: none; }
         .tabs::-webkit-scrollbar { display: none; }
         .tabs button { padding: 10px 18px; border: none; background: #222; color: #999; font-size: 13px; font-weight: bold; cursor: pointer; border-radius: 4px; white-space: nowrap; }
         .tabs button.active { background: #ffcc00; color: #000; }
+        
         #list { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; padding: 12px; overflow-y: auto; flex: 1; }
         .item { background: #111; padding: 12px 5px; text-align: center; border: 1px solid #222; border-radius: 6px; cursor: pointer; }
         .item.active { border-color: #ffcc00; background: #1a1a00; }
         .item img { height: 35px; max-width: 90%; object-fit: contain; display: block; margin: 0 auto 5px; background: #fff; border-radius: 2px; }
         .item span { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; font-weight: bold; }
-        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ffcc00; font-size: 12px; display: none; }
+        #status { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.6); color: #ffcc00; padding: 5px 10px; font-size: 12px; border-radius: 4px; z-index: 10; }
     </style>
 </head>
 <body>
 
 <div id="video-box">
-    <div id="loading">Đang tải...</div>
+    <div id="status">Đang khởi tạo...</div>
     <video id="video" controls autoplay playsinline></video>
 </div>
 
@@ -37,8 +40,8 @@
     <button onclick="setTab('SCTV', this)">SCTV</button>
     <button onclick="setTab('VTVCAB', this)">VTVCAB</button>
     <button onclick="setTab('HTV', this)">HTV</button>
+    <button onclick="setTab('ĐỊA PHƯƠNG', this)">ĐỊA PHƯƠNG</button>
     <button onclick="setTab('QUỐC TẾ', this)">QUỐC TẾ</button>
-    <button onclick="setTab('KHÁC', this)">KHÁC</button>
 </div>
 
 <div id="list"></div>
@@ -49,10 +52,9 @@
     
     let video = document.getElementById('video'), player, allData = [], curTab = "ALL";
 
-    // Hàm giải mã ClearKey (Hỗ trợ Base64/64-bit chuẩn cho VTV Prime/MPD)
-    function decode64(val) {
-        if (!val) return "";
-        if (val.length === 32) return val; 
+    // Hàm giải mã 64-bit chuẩn cho ClearKey/VTV Prime
+    function decodeKey(val) {
+        if (!val || val.length === 32) return val;
         try {
             const binary = atob(val.replace(/-/g, '+').replace(/_/g, '/'));
             let result = '';
@@ -61,75 +63,96 @@
                 result += hex;
             }
             return result;
-        } catch (e) { return val; }
+        } catch(e) { return val; }
     }
 
     async function start() {
         shaka.polyfill.installAll();
         player = new shaka.Player(video);
-        
-        // Tối ưu cho Tizen Samsung
         player.configure({
-            streaming: { bufferingGoal: 10, rebufferingGoal: 2, jumpLargeGaps: true },
-            manifest: { retryParameters: { maxAttempts: 5 } }
+            streaming: { bufferingGoal: 10, rebufferingGoal: 2, jumpLargeGaps: true }
         });
-
+        
         loadM3U();
     }
 
     async function loadM3U() {
+        document.getElementById('status').innerText = "Đang tải danh sách...";
         try {
             const r = await fetch(PROXY + encodeURIComponent(GITHUB_URL));
             const t = await r.text();
-            parse(t);
-        } catch(e) { console.error("Lỗi kết nối GitHub"); }
+            if (t.includes("#EXTM3U")) {
+                parseM3U(t);
+            } else {
+                document.getElementById('status').innerText = "Lỗi dữ liệu GitHub";
+            }
+        } catch(e) {
+            document.getElementById('status').innerText = "Lỗi kết nối mạng";
+        }
     }
 
-    function parse(data) {
+    function parseM3U(data) {
         let lines = data.split('\n'), ext = [], cur = null;
-        lines.forEach(l => {
-            l = l.trim();
+        
+        for (let i = 0; i < lines.length; i++) {
+            let l = lines[i].trim();
             if (l.startsWith('#EXTINF')) {
-                const name = l.split(',')[1] || "Kênh";
-                let g = "KHÁC";
+                const name = l.split(',')[1] || "Kênh TV";
+                let g = "ĐỊA PHƯƠNG";
                 const n = name.toUpperCase();
+                
                 if (n.includes("VTVCAB")) g = "VTVCAB";
                 else if (n.includes("SCTV")) g = "SCTV";
                 else if (n.includes("VTV")) g = "VTV";
                 else if (n.includes("HTV")) g = "HTV";
-                else if (n.includes("HBO") || n.includes("AXN") || n.includes("DISCOVERY")) g = "QUỐC TẾ";
-                
-                cur = { n: name, u: "", l: l.match(/tvg-logo="([^"]+)"/i)?.[1] || "", g, i: "", k: "" };
+                else if (n.includes("HBO") || n.includes("AXN") || n.includes("DISCOVERY") || n.includes("CNN") || n.includes("BBC") || n.includes("WARNER") || n.includes("CINEMAX")) g = "QUỐC TẾ";
+
+                cur = { 
+                    n: name, 
+                    u: "", 
+                    l: l.match(/tvg-logo="([^"]+)"/i)?.[1] || "https://via.placeholder.com/50?text=TV", 
+                    g: g, 
+                    i: "", 
+                    k: "" 
+                };
             } else if (l.includes('license_key=')) {
                 try {
                     const drm = JSON.parse(l.split('license_key=')[1]);
-                    cur.i = drm.keys[0].kid; cur.k = drm.keys[0].k;
+                    if (cur) {
+                        cur.i = drm.keys[0].kid; 
+                        cur.k = drm.keys[0].k;
+                    }
                 } catch(e) {}
             } else if (l.startsWith('http')) {
-                if (cur) { cur.u = l; ext.push(cur); cur = null; }
+                if (cur) {
+                    cur.u = l;
+                    ext.push(cur);
+                    cur = null;
+                }
             }
-        });
+        }
         allData = ext;
+        document.getElementById('status').innerText = "Đã tải " + allData.length + " kênh";
         render();
-        if(allData.length > 0) play(allData[0]);
+        if (allData.length > 0) play(allData[0]);
+        setTimeout(() => document.getElementById('status').style.display = 'none', 3000);
     }
 
     async function play(ch) {
-        document.getElementById('loading').style.display = 'block';
         await player.unload();
         video.removeAttribute('src');
         video.load();
 
         if (ch.i && ch.k) {
-            // Xử lý MPD/VTV Prime có Key: Phát gốc không Proxy
+            // Kênh ClearKey (MPD/VTV Prime)
             let drmConfig = {};
-            drmConfig[decode64(ch.i)] = decode64(ch.k);
+            drmConfig[decodeKey(ch.i)] = decodeKey(ch.k);
             player.configure({ drm: { clearKeys: drmConfig } });
             try {
                 await player.load(ch.u);
-            } catch(e) { console.error("DRM Error"); }
+            } catch(e) { console.error("DRM Fail"); }
         } else {
-            // Xử lý TV360 PHP/MP4/HLS: Có cứu hộ Proxy
+            // Kênh TV360 (PHP/MP4) hoặc HLS
             player.configure({ drm: { clearKeys: {} } });
             video.src = ch.u;
             video.onerror = function() {
@@ -139,22 +162,15 @@
                 }
             };
         }
-
-        video.play().then(() => {
-            document.getElementById('loading').style.display = 'none';
-        }).catch(() => {
-            if(!ch.i) {
-                video.src = PROXY + encodeURIComponent(ch.u);
-                video.play();
-            }
-            document.getElementById('loading').style.display = 'none';
-        });
+        video.play().catch(() => {});
         render(ch.u);
     }
 
     function render(activeUrl = "") {
         const box = document.getElementById('list');
+        if (!box) return;
         box.innerHTML = "";
+        
         allData.forEach(ch => {
             if (curTab !== 'ALL' && ch.g !== curTab) return;
             const div = document.createElement('div');
@@ -170,6 +186,8 @@
         document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         render();
+        // Cuộn danh sách về đầu khi chuyển Tab
+        document.getElementById('list').scrollTop = 0;
     }
 
     start();
