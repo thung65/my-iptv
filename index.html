@@ -48,67 +48,77 @@
     }
 
     async function start() {
-        document.getElementById('status').style.display = 'block';
         shaka.polyfill.installAll();
         player = new shaka.Player(video);
+        // Tối ưu bộ đệm cho tivi
+        player.configure({ streaming: { bufferingGoal: 10, rebufferingGoal: 2 } });
 
         try {
-            // Tải file từ GitHub qua trung gian để tránh lỗi CORS
             const r = await fetch(PROXY + encodeURIComponent(M3U_URL));
             const t = await r.text();
-            
-            let lines = t.split('\n'), ext = [], cur = null;
-            lines.forEach(l => {
-                l = l.trim();
-                if (l.startsWith('#EXTINF')) {
-                    const name = l.split(',')[1] || "Kênh không tên";
-                    let g = "KHÁC"; // Mặc định là nhóm KHÁC để không bị sót kênh
-                    const n = name.toUpperCase();
-                    if (n.includes("VTVCAB")) g = "VTVCAB";
-                    else if (n.includes("SCTV")) g = "SCTV";
-                    else if (n.includes("VTV")) g = "VTV";
-                    else if (n.includes("HTV")) g = "HTV";
-                    
-                    cur = { n: name, u: "", l: l.match(/tvg-logo="([^"]+)"/i)?.[1] || "", g: g, i: "", k: "" };
-                } else if (l.includes('license_key=')) {
-                    try {
-                        const drm = JSON.parse(l.split('license_key=')[1]);
-                        cur.i = drm.keys[0].kid; cur.k = drm.keys[0].k;
-                    } catch(e) {}
-                } else if (l.startsWith('http')) {
-                    if (cur) { cur.u = l; ext.push(cur); cur = null; }
-                }
-            });
+            parse(t);
+        } catch(e) { console.log("Lỗi tải danh sách"); }
+    }
 
-            allData = ext;
-            document.getElementById('status').style.display = 'none';
-            render();
-            if(allData.length > 0) play(allData[0]);
-        } catch(e) {
-            document.getElementById('status').innerText = "Lỗi tải GitHub!";
-        }
+    function parse(data) {
+        let lines = data.split('\n'), ext = [], cur = null;
+        lines.forEach(l => {
+            l = l.trim();
+            if (l.startsWith('#EXTINF')) {
+                const name = l.split(',')[1] || "Kênh";
+                let g = "KHÁC";
+                const n = name.toUpperCase();
+                if (n.includes("VTVCAB")) g = "VTVCAB";
+                else if (n.includes("SCTV")) g = "SCTV";
+                else if (n.includes("VTV")) g = "VTV";
+                else if (n.includes("HTV")) g = "HTV";
+                cur = { n: name, u: "", l: l.match(/tvg-logo="([^"]+)"/i)?.[1] || "", g: g, i: "", k: "" };
+            } else if (l.includes('license_key=')) {
+                try {
+                    const drm = JSON.parse(l.split('license_key=')[1]);
+                    cur.i = drm.keys[0].kid; cur.k = drm.keys[0].k;
+                } catch(e) {}
+            } else if (l.startsWith('http')) {
+                if (cur) { cur.u = l; ext.push(cur); cur = null; }
+            }
+        });
+        allData = ext;
+        render();
+        if(allData.length > 0) play(allData[0]);
     }
 
     async function play(ch) {
         await player.unload();
-        video.src = "";
+        video.removeAttribute('src');
+        video.load();
         
+        // Ưu tiên ClearKey (MPD) phát trực tiếp qua Shaka
         if (ch.i && ch.k) {
             let drmConfig = {};
             drmConfig[toHex(ch.i)] = toHex(ch.k);
             player.configure({ drm: { clearKeys: drmConfig } });
-            try { await player.load(ch.u); } catch(e) { video.src = PROXY + encodeURIComponent(ch.u); }
-        } else {
+            try {
+                await player.load(ch.u);
+            } catch(e) {
+                // Cứu hộ qua Proxy nếu bị chặn CORS
+                await player.load(PROXY + encodeURIComponent(ch.u));
+            }
+        } 
+        else {
             player.configure({ drm: { clearKeys: {} } });
-            video.src = ch.u;
-            video.onerror = () => {
+            video.src = ch.u; // Thử phát gốc (MP4, PHP)
+            
+            video.onerror = function() {
+                // Nếu gốc lỗi (TV360 chặn), cứu hộ ngay bằng trung gian
                 if (video.src !== (PROXY + encodeURIComponent(ch.u))) {
                     video.src = PROXY + encodeURIComponent(ch.u);
                     video.play();
                 }
             };
         }
+
         video.play().catch(() => {
+            // Cứu hộ cuối cùng
             video.src = PROXY + encodeURIComponent(ch.u);
             video.play();
         });
@@ -117,6 +127,7 @@
 
     function render(activeUrl = "") {
         const box = document.getElementById('list');
+        if(!box) return;
         box.innerHTML = "";
         allData.forEach(ch => {
             if (curTab !== 'ALL' && ch.g !== curTab) return;
@@ -134,7 +145,6 @@
         btn.classList.add('active');
         render();
     }
-
     start();
 </script>
 </body>
