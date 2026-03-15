@@ -3,17 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IPTV SAMSUNG FIX MPD</title>
+    <title>SAMSUNG TV PRO - FIXED MPD</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: sans-serif; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
         #video-box { width: 100%; aspect-ratio: 16/9; background: #000; border-bottom: 2px solid #ffcc00; }
-        video { width: 100%; height: 100%; outline: none; }
-        .tabs { display: flex; overflow-x: auto; background: #111; padding: 10px; gap: 8px; border-bottom: 1px solid #333; }
+        video { width: 100%; height: 100%; }
+        .tabs { display: flex; overflow-x: auto; background: #111; padding: 10px; gap: 8px; border-bottom: 1px solid #333; scrollbar-width: none; }
         .tabs button { padding: 10px 18px; border: none; background: #222; color: #999; font-size: 13px; font-weight: bold; border-radius: 4px; white-space: nowrap; }
         .tabs button.active { background: #ffcc00; color: #000; }
         #list { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; padding: 12px; overflow-y: auto; flex: 1; }
-        .item { background: #111; padding: 12px 5px; text-align: center; border: 1px solid #222; border-radius: 6px; }
+        .item { background: #111; padding: 10px 5px; text-align: center; border: 1px solid #222; border-radius: 6px; }
         .item.active { border-color: #ffcc00; background: #1a1a00; }
         .item img { height: 35px; max-width: 90%; margin-bottom: 5px; background: #fff; border-radius: 2px; }
         .item span { font-size: 10px; display: block; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -41,31 +41,33 @@
     
     let video = document.getElementById('video'), player, allData = [], curTab = "ALL";
 
-    // Hàm giải mã cực chuẩn cho Samsung TV - KHÔNG ĐƯỢC SAI KHÁC
-    function fixKey(val) {
-        if (!val) return "";
+    // Hàm chuyển đổi Base64 sang Hex ổn định nhất cho Tizen
+    function base64ToHex(str) {
+        if (!str) return '';
         try {
-            // Chuyển đổi Base64 (dạng an toàn web) sang chuẩn Base64 gốc
-            let base64 = val.replace(/-/g, '+').replace(/_/g, '/');
-            // Chuyển Base64 sang chuỗi Hex
-            let str = atob(base64);
-            let hex = '';
-            for (let i = 0; i < str.length; i++) {
-                let h = str.charCodeAt(i).toString(16);
-                hex += (h.length === 1 ? '0' : '') + h;
+            const raw = atob(str.replace(/-/g, '+').replace(/_/g, '/'));
+            let result = '';
+            for (let i = 0; i < raw.length; i++) {
+                const hex = raw.charCodeAt(i).toString(16);
+                result += (hex.length === 2 ? hex : '0' + hex);
             }
-            return hex;
-        } catch (e) { return val; }
+            return result;
+        } catch (e) { return str; }
     }
 
-    async function start() {
+    async function initPlayer() {
         shaka.polyfill.installAll();
         player = new shaka.Player(video);
         
-        // Cấu hình bắt buộc cho MPD ClearKey trên Tizen
+        // Cấu hình DRM bắt buộc để Samsung TV nhận diện ClearKey
         player.configure({
-            streaming: { bufferingGoal: 10, rebufferingGoal: 2, jumpLargeGaps: true },
-            manifest: { retryParameters: { maxAttempts: 5 } }
+            drm: {
+                clearKeys: {} 
+            },
+            streaming: {
+                jumpLargeGaps: true,
+                bufferingGoal: 15
+            }
         });
 
         loadM3U();
@@ -73,85 +75,82 @@
 
     async function loadM3U() {
         try {
-            const r = await fetch(PROXY + encodeURIComponent(GITHUB_URL));
-            const t = await r.text();
-            parse(t);
-        } catch(e) { console.log("Lỗi tải danh sách"); }
+            const response = await fetch(PROXY + encodeURIComponent(GITHUB_URL));
+            const data = await response.text();
+            parseM3U(data);
+        } catch (e) { console.error("Lỗi tải M3U"); }
     }
 
-    function parse(data) {
-        let lines = data.split('\n'), ext = [], cur = null;
-        for (let l of lines) {
-            l = l.trim();
-            if (l.startsWith('#EXTINF')) {
-                const name = l.split(',')[1] || "Kênh";
-                let g = "ĐỊA PHƯƠNG";
+    function parseM3U(data) {
+        const lines = data.split('\n');
+        let channels = [], cur = null;
+
+        lines.forEach(line => {
+            line = line.trim();
+            if (line.startsWith('#EXTINF')) {
+                const name = line.split(',')[1] || "Kênh";
+                let group = "ĐỊA PHƯƠNG";
                 const n = name.toUpperCase();
-                if (n.includes("VTVCAB")) g = "VTVCAB";
-                else if (n.includes("SCTV")) g = "SCTV";
-                else if (n.includes("VTV")) g = "VTV";
-                else if (n.includes("HTV")) g = "HTV";
-                else if (n.includes("HBO") || n.includes("AXN") || n.includes("DISCOVERY") || n.includes("CNN") || n.includes("BBC")) g = "QUỐC TẾ";
+                if (n.includes("VTVCAB")) group = "VTVCAB";
+                else if (n.includes("SCTV")) group = "SCTV";
+                else if (n.includes("VTV")) group = "VTV";
+                else if (n.includes("HTV")) group = "HTV";
+                else if (n.includes("HBO") || n.includes("AXN") || n.includes("DISCOVERY") || n.includes("CNN")) group = "QUỐC TẾ";
 
-                cur = { n: name, u: "", l: l.match(/tvg-logo="([^"]+)"/i)?.[1] || "", g: g, i: "", k: "" };
-            } else if (l.includes('license_key=')) {
+                cur = { n: name, u: "", l: line.match(/tvg-logo="([^"]+)"/i)?.[1] || "", g: group, kid: "", key: "" };
+            } else if (line.includes('license_key=')) {
                 try {
-                    const drm = JSON.parse(l.split('license_key=')[1]);
-                    cur.i = drm.keys[0].kid; cur.k = drm.keys[0].k;
-                } catch(e) {}
-            } else if (l.startsWith('http')) {
-                if (cur) { cur.u = l; ext.push(cur); cur = null; }
+                    const drm = JSON.parse(line.split('license_key=')[1]);
+                    cur.kid = drm.keys[0].kid;
+                    cur.key = drm.keys[0].k;
+                } catch (e) {}
+            } else if (line.startsWith('http')) {
+                if (cur) { cur.u = line; channels.push(cur); cur = null; }
             }
-        }
-        allData = ext;
+        });
+        allData = channels;
         render();
-        if (allData.length > 0) play(allData[0]);
+        if (allData.length > 0) playChannel(allData[0]);
     }
 
-    async function play(ch) {
-        // QUAN TRỌNG: Reset hoàn toàn trình phát trước khi nạp kênh mới
+    async function playChannel(ch) {
         await player.unload();
-        video.src = ""; 
-
-        if (ch.i && ch.k) {
-            // NẾU LÀ MPD (DASH)
-            let drmConfig = {};
-            drmConfig[fixKey(ch.i)] = fixKey(ch.k);
-            
-            // Ép Shaka sử dụng cấu hình ClearKey sạch
+        
+        // Quan trọng: Phải reset cấu hình DRM trước mỗi lần phát
+        let drmConfig = {};
+        if (ch.kid && ch.key) {
+            drmConfig[base64ToHex(ch.kid)] = base64ToHex(ch.key);
             player.configure({ drm: { clearKeys: drmConfig } });
             
             try {
                 await player.load(ch.u);
-            } catch(e) {
-                // Nếu load MPD thất bại, thử qua Proxy (một số server chặn CORS cho manifest)
-                try { await player.load(PROXY + encodeURIComponent(ch.u)); } catch(e2) {}
+            } catch (e) {
+                // Nếu load MPD gốc lỗi, thử load qua Proxy
+                try { await player.load(PROXY + encodeURIComponent(ch.u)); } catch (err) {}
             }
         } else {
-            // NẾU LÀ HLS/MP4 (TV360)
+            // Đối với HLS (TV360, VTV Prime m3u8)
             player.configure({ drm: { clearKeys: {} } });
             video.src = ch.u;
-            video.onerror = function() {
+            video.onerror = () => {
                 if (video.src !== (PROXY + encodeURIComponent(ch.u))) {
                     video.src = PROXY + encodeURIComponent(ch.u);
-                    video.play();
                 }
             };
         }
-        video.play().catch(() => {});
         render(ch.u);
     }
 
     function render(activeUrl = "") {
-        const box = document.getElementById('list');
-        box.innerHTML = "";
+        const list = document.getElementById('list');
+        list.innerHTML = "";
         allData.forEach(ch => {
             if (curTab !== 'ALL' && ch.g !== curTab) return;
-            const div = document.createElement('div');
-            div.className = `item ${ch.u === activeUrl ? 'active' : ''}`;
-            div.innerHTML = `<img src="${ch.l}" onerror="this.src='https://via.placeholder.com/50?text=TV'"><span>${ch.n}</span>`;
-            div.onclick = () => play(ch);
-            box.appendChild(div);
+            const item = document.createElement('div');
+            item.className = `item ${ch.u === activeUrl ? 'active' : ''}`;
+            item.innerHTML = `<img src="${ch.l}" onerror="this.src='https://via.placeholder.com/50?text=TV'"><span>${ch.n}</span>`;
+            item.onclick = () => playChannel(ch);
+            list.appendChild(item);
         });
     }
 
@@ -161,7 +160,8 @@
         btn.classList.add('active');
         render();
     }
-    start();
+
+    initPlayer();
 </script>
 </body>
 </html>
