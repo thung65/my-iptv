@@ -3,22 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TV VIP - FULL CHANNELS</title>
+    <title>SAMSUNG TV - FIX LIST</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
     <style>
-        :root { --gold: #ffcc00; --bg: #000; }
-        body { margin: 0; background: var(--bg); color: #fff; font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        #v-box { width: 100%; aspect-ratio: 16/9; background: #000; flex-shrink: 0; border-bottom: 2px solid var(--gold); position: sticky; top: 0; z-index: 100; }
+        :root { --gold: #ffcc00; }
+        body { margin: 0; background: #000; color: #fff; font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        #v-box { width: 100%; aspect-ratio: 16/9; background: #000; border-bottom: 2px solid var(--gold); }
         video { width: 100%; height: 100%; }
-        .tabs { display: flex; overflow-x: auto; background: #111; padding: 10px; gap: 8px; flex-shrink: 0; scrollbar-width: none; border-bottom: 1px solid #222; }
-        .tabs button { padding: 10px 16px; border: none; border-radius: 4px; background: #222; color: #888; white-space: nowrap; font-size: 12px; font-weight: bold; cursor: pointer; }
-        .tabs button.active { background: var(--gold); color: #000; }
-        #list { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; padding: 15px; overflow-y: auto; flex-grow: 1; -webkit-overflow-scrolling: touch; }
-        .item { background: #151515; border-radius: 8px; padding: 10px 5px; text-align: center; cursor: pointer; border: 2px solid transparent; }
-        .item.active { border-color: var(--gold); background: #221f00; }
-        .img-wrap { width: 100%; height: 40px; display: flex; align-items: center; justify-content: center; margin-bottom: 5px; pointer-events: none; }
-        .item img { max-width: 85%; max-height: 100%; object-fit: contain; }
-        .item span { font-size: 11px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: bold; }
+        .tabs { display: flex; overflow-x: auto; background: #111; padding: 10px; gap: 8px; flex-shrink: 0; }
+        .tabs button { padding: 8px 15px; border: none; border-radius: 4px; background: #333; color: #fff; white-space: nowrap; cursor: pointer; }
+        .tabs button.active { background: var(--gold); color: #000; font-weight: bold; }
+        #list { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; padding: 10px; overflow-y: auto; flex-grow: 1; }
+        .item { background: #1a1a1a; border-radius: 5px; padding: 8px; text-align: center; border: 2px solid transparent; }
+        .item.active { border-color: var(--gold); }
+        .item img { width: auto; height: 40px; max-width: 100%; object-fit: contain; margin-bottom: 5px; }
+        .item span { font-size: 10px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     </style>
 </head>
 <body>
@@ -26,22 +25,24 @@
 <div id="v-box"><video id="video" controls autoplay playsinline></video></div>
 
 <div class="tabs" id="tab-bar">
-    <button class="active" onclick="setTab('ALL', this)">TẤT CẢ</button>
+    <button id="btn-all" class="active" onclick="setTab('ALL', this)">TẤT CẢ</button>
 </div>
 
-<div id="list"></div>
+<div id="list">Đang tải danh sách kênh...</div>
 
 <script>
-    const GITHUB = "https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123";
+    const GITHUB = "https://raw.githubusercontent.com/thung65/Iptv-vietnam/main/ducnt123";
+    // Sử dụng Proxy dự phòng ổn định hơn
     const PROXY = "https://api.allorigins.win/raw?url=";
-    let video, player, allData = [], curTab = "ALL", groups = new Set();
+    
+    let video, player, allData = [], curTab = "ALL";
 
-    function decodeToUint8(str) {
+    // Giải mã vạn năng cho ClearKey
+    function toUint8(str) {
         if (!str) return null;
-        str = str.trim();
         try {
             if (/^[0-9a-fA-F]+$/.test(str.replace(/[: -]/g, ''))) {
-                const clean = str.replace(/[: -]/g, '').toLowerCase();
+                const clean = str.replace(/[: -]/g, '');
                 return new Uint8Array(clean.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
             }
             const bin = atob(str.replace(/-/g, '+').replace(/_/g, '/'));
@@ -49,63 +50,82 @@
         } catch(e) { return null; }
     }
 
-    function toHex(buf) {
-        return Array.from(buf).map(b => b.toString(16).padStart(2, '0')).join('');
-    }
-
     async function init() {
         video = document.getElementById('video');
         shaka.polyfill.installAll();
         player = new shaka.Player(video);
         player.configure({ streaming: { jumpLargeGaps: true } });
+        
         await loadM3U();
-        render();
-        if(allData.length > 0) play(0);
     }
 
     async function loadM3U() {
+        const listDiv = document.getElementById('list');
         try {
-            const r = await fetch(PROXY + encodeURIComponent(GITHUB));
+            const r = await fetch(PROXY + encodeURIComponent(GITHUB + "?v=" + Date.now()));
             const txt = await r.text();
-            let channels = [], tempKid = "", tempKey = "", tempName = "", tempLogo = "", tempGroup = "Khác";
+            
+            if (!txt.includes('#EXTM3U')) {
+                listDiv.innerText = "Lỗi: Không đọc được nội dung file!";
+                return;
+            }
 
-            txt.split('\n').forEach(line => {
+            let channels = [], cur = null, groups = new Set();
+            const lines = txt.split('\n');
+
+            lines.forEach(line => {
                 line = line.trim();
                 if (line.startsWith('#EXTINF')) {
-                    tempName = line.split(',')[1] || "Kênh không tên";
-                    tempLogo = line.match(/tvg-logo="([^"]+)"/i)?.[1] || "";
-                    tempGroup = line.match(/group-title="([^"]+)"/i)?.[1] || "Khác";
-                    groups.add(tempGroup);
-                } 
-                else if (line.includes('license_key=')) {
+                    const name = line.split(',')[1] || "Kênh";
+                    const logo = line.match(/tvg-logo="([^"]+)"/i)?.[1] || "";
+                    const group = line.match(/group-title="([^"]+)"/i)?.[1] || "Khác";
+                    cur = { n: name, l: logo, g: group, u: "", kid: "", key: "" };
+                    groups.add(group);
+                } else if (line.includes('license_key=')) {
                     const val = line.split('license_key=')[1];
                     if (val.startsWith('{')) {
                         try {
                             const drm = JSON.parse(val);
-                            tempKid = drm.keys[0].kid; tempKey = drm.keys[0].k;
+                            cur.kid = drm.keys[0].kid; cur.key = drm.keys[0].k;
                         } catch(e) {}
                     } else if (val.includes(':')) {
                         const p = val.split(':');
-                        tempKid = p[0]; tempKey = p[1];
+                        cur.kid = p[0]; cur.key = p[1];
                     }
-                } 
-                else if (line.startsWith('http')) {
-                    channels.push({ n: tempName, u: line, l: tempLogo, g: tempGroup, kid: tempKid, key: tempKey });
-                    // Reset thông tin cho kênh kế tiếp nhưng giữ lại Group nếu cần
-                    tempKid = ""; tempKey = "";
+                } else if (line.startsWith('http')) {
+                    if (cur) {
+                        cur.u = line;
+                        channels.push(cur);
+                        cur = null;
+                    }
                 }
             });
+
             allData = channels;
-            
-            // Tự động tạo nút Tab dựa trên group-title thực tế trong file
-            const tabBar = document.getElementById('tab-bar');
-            Array.from(groups).sort().forEach(g => {
-                const btn = document.createElement('button');
-                btn.innerText = g.toUpperCase();
-                btn.onclick = (e) => setTab(g, e.target);
-                tabBar.appendChild(btn);
-            });
-        } catch(e) { console.error("Lỗi tải file"); }
+            createTabs(groups);
+            render();
+            if(allData.length > 0) play(0);
+
+        } catch(e) {
+            listDiv.innerText = "Lỗi kết nối GitHub!";
+        }
+    }
+
+    function createTabs(groups) {
+        const bar = document.getElementById('tab-bar');
+        // Sắp xếp: Tất cả -> Các nhóm -> Quốc tế (cuối)
+        const sortedGroups = Array.from(groups).sort((a, b) => {
+            if (a.includes("Quốc Tế")) return 1;
+            if (b.includes("Quốc Tế")) return -1;
+            return a.localeCompare(b);
+        });
+
+        sortedGroups.forEach(g => {
+            const btn = document.createElement('button');
+            btn.innerText = g.toUpperCase();
+            btn.onclick = (e) => setTab(g, e.target);
+            bar.appendChild(btn);
+        });
     }
 
     async function play(idx) {
@@ -115,15 +135,15 @@
         video.src = "";
 
         if (ch.kid && ch.key) {
-            const kidB = decodeToUint8(ch.kid);
-            const keyB = decodeToUint8(ch.key);
+            const kidB = toUint8(ch.kid);
+            const keyB = toUint8(ch.key);
             if (kidB && keyB) {
                 let drm = {};
-                drm[toHex(kidB)] = keyB;
+                // Tizen/Samsung yêu cầu KID dạng Hex
+                const kidHex = Array.from(kidB).map(b => b.toString(16).padStart(2, '0')).join('');
+                drm[kidHex] = keyB;
                 player.configure({ drm: { clearKeys: drm } });
-                try { await player.load(ch.u); } catch(e) {
-                    try { await player.load(PROXY + encodeURIComponent(ch.u)); } catch(e2) {}
-                }
+                try { await player.load(ch.u); } catch(e) {}
             }
         } else {
             player.configure({ drm: { clearKeys: {} } });
@@ -139,12 +159,22 @@
     function render(activeIdx = -1) {
         const box = document.getElementById('list');
         box.innerHTML = "";
-        allData.forEach((ch, i) => {
-            if (curTab !== 'ALL' && ch.g !== curTab) return;
+        const filtered = allData.filter(ch => curTab === 'ALL' || ch.g === curTab);
+        
+        if (filtered.length === 0) {
+            box.innerHTML = "Không có kênh nào trong nhóm này.";
+            return;
+        }
+
+        filtered.forEach((ch) => {
+            const realIdx = allData.indexOf(ch);
             const div = document.createElement('div');
-            div.className = `item ${activeIdx === i ? 'active' : ''}`;
-            div.innerHTML = `<div class="img-wrap"><img src="${ch.l}" onerror="this.src='https://via.placeholder.com/50?text=TV'"></div><span>${ch.n}</span>`;
-            div.onclick = () => play(i);
+            div.className = `item ${activeIdx === realIdx ? 'active' : ''}`;
+            div.innerHTML = `
+                <img src="${ch.l}" onerror="this.src='https://via.placeholder.com/50?text=TV'">
+                <span>${ch.n}</span>
+            `;
+            div.onclick = () => play(realIdx);
             box.appendChild(div);
         });
     }
@@ -155,6 +185,7 @@
         btn.classList.add('active');
         render();
     }
+
     init();
 </script>
 </body>
