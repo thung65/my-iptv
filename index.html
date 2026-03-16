@@ -3,20 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SAMSUNG TV - MPD OK</title>
+    <title>TV VIP - FULL CHANNELS</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
     <style>
         :root { --gold: #ffcc00; --bg: #000; }
         body { margin: 0; background: var(--bg); color: #fff; font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         #v-box { width: 100%; aspect-ratio: 16/9; background: #000; flex-shrink: 0; border-bottom: 2px solid var(--gold); position: sticky; top: 0; z-index: 100; }
         video { width: 100%; height: 100%; }
-        .tabs { display: flex; overflow-x: auto; background: #111; padding: 10px; gap: 8px; flex-shrink: 0; scrollbar-width: none; }
-        .tabs button { padding: 10px 16px; border: none; border-radius: 4px; background: #222; color: #888; white-space: nowrap; font-size: 13px; font-weight: bold; cursor: pointer; }
+        .tabs { display: flex; overflow-x: auto; background: #111; padding: 10px; gap: 8px; flex-shrink: 0; scrollbar-width: none; border-bottom: 1px solid #222; }
+        .tabs button { padding: 10px 16px; border: none; border-radius: 4px; background: #222; color: #888; white-space: nowrap; font-size: 12px; font-weight: bold; cursor: pointer; }
         .tabs button.active { background: var(--gold); color: #000; }
-        #list { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; padding: 15px; overflow-y: auto; flex-grow: 1; }
+        #list { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; padding: 15px; overflow-y: auto; flex-grow: 1; -webkit-overflow-scrolling: touch; }
         .item { background: #151515; border-radius: 8px; padding: 10px 5px; text-align: center; cursor: pointer; border: 2px solid transparent; }
         .item.active { border-color: var(--gold); background: #221f00; }
-        .img-wrap { width: 100%; height: 40px; display: flex; align-items: center; justify-content: center; margin-bottom: 5px; }
+        .img-wrap { width: 100%; height: 40px; display: flex; align-items: center; justify-content: center; margin-bottom: 5px; pointer-events: none; }
         .item img { max-width: 85%; max-height: 100%; object-fit: contain; }
         .item span { font-size: 11px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: bold; }
     </style>
@@ -25,11 +25,8 @@
 
 <div id="v-box"><video id="video" controls autoplay playsinline></video></div>
 
-<div class="tabs">
+<div class="tabs" id="tab-bar">
     <button class="active" onclick="setTab('ALL', this)">TẤT CẢ</button>
-    <button onclick="setTab('QUỐC TẾ', this)">QUỐC TẾ</button>
-    <button onclick="setTab('SCTV', this)">SCTV</button>
-    <button onclick="setTab('VTV', this)">VTV</button>
 </div>
 
 <div id="list"></div>
@@ -37,25 +34,21 @@
 <script>
     const GITHUB = "https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/ducnt123";
     const PROXY = "https://api.allorigins.win/raw?url=";
-    let video, player, allData = [], curTab = "ALL";
+    let video, player, allData = [], curTab = "ALL", groups = new Set();
 
-    // Chuyển đổi mọi định dạng Key sang Uint8Array cho Samsung TV
-    function toUint8(str) {
+    function decodeToUint8(str) {
         if (!str) return null;
         str = str.trim();
         try {
-            // Trường hợp Hex (SCTV / BoxMovie)
             if (/^[0-9a-fA-F]+$/.test(str.replace(/[: -]/g, ''))) {
                 const clean = str.replace(/[: -]/g, '').toLowerCase();
                 return new Uint8Array(clean.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
             }
-            // Trường hợp Base64 (HBO / Quốc tế)
             const bin = atob(str.replace(/-/g, '+').replace(/_/g, '/'));
             return new Uint8Array(bin.length).map((_, i) => bin.charCodeAt(i));
         } catch(e) { return null; }
     }
 
-    // Chuyển Uint8Array sang Hex string cho KID
     function toHex(buf) {
         return Array.from(buf).map(b => b.toString(16).padStart(2, '0')).join('');
     }
@@ -64,13 +57,7 @@
         video = document.getElementById('video');
         shaka.polyfill.installAll();
         player = new shaka.Player(video);
-        
-        // Cấu hình quan trọng để xử lý lỗi phát trên TV
-        player.configure({
-            streaming: { jumpLargeGaps: true },
-            manifest: { dash: { clockSyncUri: '' } }
-        });
-
+        player.configure({ streaming: { jumpLargeGaps: true } });
         await loadM3U();
         render();
         if(allData.length > 0) play(0);
@@ -80,66 +67,70 @@
         try {
             const r = await fetch(PROXY + encodeURIComponent(GITHUB));
             const txt = await r.text();
-            let channels = [], cur = null;
-            
+            let channels = [], tempKid = "", tempKey = "", tempName = "", tempLogo = "", tempGroup = "Khác";
+
             txt.split('\n').forEach(line => {
                 line = line.trim();
                 if (line.startsWith('#EXTINF')) {
-                    const name = line.split(',')[1] || "Kênh";
-                    let g = "ĐỊA PHƯƠNG";
-                    if (line.includes('SCTV')) g = "SCTV";
-                    else if (line.includes('VTV')) g = "VTV";
-                    else if (line.includes('Quốc Tế')) g = "QUỐC TẾ";
-                    cur = { n: name, u: "", l: line.match(/tvg-logo="([^"]+)"/i)?.[1] || "", g, kid: "", key: "" };
+                    tempName = line.split(',')[1] || "Kênh không tên";
+                    tempLogo = line.match(/tvg-logo="([^"]+)"/i)?.[1] || "";
+                    tempGroup = line.match(/group-title="([^"]+)"/i)?.[1] || "Khác";
+                    groups.add(tempGroup);
                 } 
                 else if (line.includes('license_key=')) {
                     const val = line.split('license_key=')[1];
-                    if (val.startsWith('{')) { // JSON
+                    if (val.startsWith('{')) {
                         try {
                             const drm = JSON.parse(val);
-                            cur.kid = drm.keys[0].kid; cur.key = drm.keys[0].k;
+                            tempKid = drm.keys[0].kid; tempKey = drm.keys[0].k;
                         } catch(e) {}
-                    } else if (val.includes(':')) { // Hex KID:KEY
+                    } else if (val.includes(':')) {
                         const p = val.split(':');
-                        cur.kid = p[0]; cur.key = p[1];
+                        tempKid = p[0]; tempKey = p[1];
                     }
                 } 
                 else if (line.startsWith('http')) {
-                    if (cur) { cur.u = line; channels.push(cur); cur = null; }
+                    channels.push({ n: tempName, u: line, l: tempLogo, g: tempGroup, kid: tempKid, key: tempKey });
+                    // Reset thông tin cho kênh kế tiếp nhưng giữ lại Group nếu cần
+                    tempKid = ""; tempKey = "";
                 }
             });
             allData = channels;
-        } catch(e) {}
+            
+            // Tự động tạo nút Tab dựa trên group-title thực tế trong file
+            const tabBar = document.getElementById('tab-bar');
+            Array.from(groups).sort().forEach(g => {
+                const btn = document.createElement('button');
+                btn.innerText = g.toUpperCase();
+                btn.onclick = (e) => setTab(g, e.target);
+                tabBar.appendChild(btn);
+            });
+        } catch(e) { console.error("Lỗi tải file"); }
     }
 
     async function play(idx) {
         const ch = allData[idx];
         if (!ch) return;
         await player.unload();
+        video.src = "";
 
         if (ch.kid && ch.key) {
-            const kidBuf = toUint8(ch.kid);
-            const keyBuf = toUint8(ch.key);
-            
-            if (kidBuf && keyBuf) {
-                // Ép ClearKey vào Shaka
+            const kidB = decodeToUint8(ch.kid);
+            const keyB = decodeToUint8(ch.key);
+            if (kidB && keyB) {
                 let drm = {};
-                drm[toHex(kidBuf)] = keyBuf;
+                drm[toHex(kidB)] = keyB;
                 player.configure({ drm: { clearKeys: drm } });
-                
-                try {
-                    await player.load(ch.u);
-                } catch (e) {
-                    // Thử lại với Proxy nếu bị chặn CORS
+                try { await player.load(ch.u); } catch(e) {
                     try { await player.load(PROXY + encodeURIComponent(ch.u)); } catch(e2) {}
                 }
             }
         } else {
             player.configure({ drm: { clearKeys: {} } });
             if (ch.u.includes('.mpd')) {
-                await player.load(ch.u);
+                try { await player.load(ch.u); } catch(e) {}
             } else {
-                video.src = ch.u; // Link m3u8 (TV360 của bạn)
+                video.src = ch.u;
             }
         }
         render(idx);
