@@ -216,21 +216,24 @@
         { n: "WOMAN", u: "https://livevlisctcdnw.seenow.vn/livesnv2/WO/manifest.mpd", i: "a7c942778e874d43be92b8d0a0cd11b4", k: "6d54358306571658ffdb952c6560688b", l: "https://vnepg.site/logos/139.png", g: "QUỐC TẾ" }
     ];
 
-    // 2. Khai báo biến toàn cục
-    let videoEl, shakaPlayer, allData = [], curTab = "ALL";
+    // HÀM CHUYỂN ĐỔI KEY CHUẨN CHO TIVI
+    function toUint8Array(hexString) {
+        if (!hexString || hexString.length % 2 !== 0) return null;
+        return new Uint8Array(hexString.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+    }
 
-    function toHex(val) {
-        if (!val || val.length === 32) return val || "";
+    function decodeKey(val) {
+        if (!val) return "";
+        if (val.length === 32) return val;
         try {
-            return Array.from(atob(val.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0).toString(16).padStart(2,'0')).join('');
+            const decoded = atob(val.replace(/-/g,'+').replace(/_/g,'/'));
+            return Array.from(decoded, c => c.charCodeAt(0).toString(16).padStart(2,'0')).join('');
         } catch(e) { return val; }
     }
 
-    // 3. Hàm phát kênh chính
     async function play(ch) {
         if (!shakaPlayer) return;
-
-        // Reset video hoàn toàn để tránh kẹt luồng PHP/MPD
+        
         await shakaPlayer.unload();
         videoEl.pause();
         videoEl.removeAttribute('src');
@@ -239,11 +242,18 @@
         const isMPD = ch.u.toLowerCase().includes('.mpd');
 
         if (isMPD) {
-            // Chế độ SHAKA cho link MPD
-            let drmConfig = {};
+            // CẤU HÌNH DRM CỰC MẠNH CHO MPD
             if (ch.i && ch.k) {
-                drmConfig[toHex(ch.i)] = toHex(ch.k);
-                shakaPlayer.configure({ drm: { clearKeys: drmConfig } });
+                const kid = decodeKey(ch.i);
+                const key = decodeKey(ch.k);
+                let drmConfig = {};
+                // Tivi Samsung cần định dạng Uint8Array cho ClearKey
+                drmConfig[kid] = toUint8Array(key);
+                
+                shakaPlayer.configure({
+                    drm: { clearKeys: drmConfig },
+                    streaming: { jumpLargeGaps: true }
+                });
             } else {
                 shakaPlayer.configure({ drm: { clearKeys: {} } });
             }
@@ -252,30 +262,36 @@
                 await shakaPlayer.load(ch.u);
                 videoEl.play();
             } catch (e) {
-                // Fallback nếu Shaka lỗi
+                console.error("Shaka Load Error:", e);
+                // Nếu MPD lỗi, thử ép phát gốc (hiếm khi chạy nhưng là dự phòng cuối)
                 videoEl.src = ch.u;
                 videoEl.play();
             }
         } else {
-            // Chế độ PHÁT GỐC cho link .php (VieON) hoặc .m3u8
+            // LINK PHP / HLS (VIEON)
             shakaPlayer.configure({ drm: { clearKeys: {} } });
             videoEl.src = ch.u;
-            videoEl.play().catch(e => console.log("Lỗi Native:", e));
+            videoEl.play().catch(e => {});
         }
-
         renderList(ch.u);
     }
 
-    // 4. Khởi tạo ứng dụng
     async function initApp() {
         videoEl = document.getElementById('myVideo');
         shaka.polyfill.installAll();
         
         if (shaka.Player.isBrowserSupported()) {
             shakaPlayer = new shaka.Player(videoEl);
-            shakaPlayer.configure({ streaming: { bufferingGoal: 10 } });
             
-            // Tải dữ liệu
+            // Cấu hình mạng để tránh lỗi Timeout trên Tivi
+            shakaPlayer.configure({
+                streaming: {
+                    bufferingGoal: 15,
+                    rebufferingGoal: 3,
+                },
+                manifest: { retryParameters: { maxAttempts: 5 } }
+            });
+
             try {
                 const response = await fetch(GITHUB_URL);
                 const text = await response.text();
@@ -284,18 +300,18 @@
                 text.split('\n').forEach(line => {
                     line = line.trim();
                     if (line.startsWith('#EXTINF')) {
-                        const name = line.split(',')[1] || "Kênh không tên";
+                        const name = line.split(',')[1] || "Kênh";
                         let group = "ĐỊA PHƯƠNG";
                         if (name.includes("VTVCAB")) group = "VTVCAB";
                         else if (name.includes("SCTV")) group = "SCTV";
-                        else if (name.includes("HTV")) group = "HTV";
                         else if (name.includes("VTV")) group = "VTV";
                         
                         currentItem = { 
-                            n: name, 
-                            u: "", 
+                            n: name, u: "", 
                             l: line.match(/tvg-logo="([^"]+)"/i)?.[1] || "", 
-                            g: group 
+                            g: group,
+                            i: line.match(/keyId="([^"]+)"/i)?.[1] || "", // Lấy Key ID nếu có trong m3u
+                            k: line.match(/key="([^"]+)"/i)?.[1] || ""    // Lấy Key nếu có trong m3u
                         };
                     } else if (line.startsWith('http') && currentItem) {
                         currentItem.u = line;
@@ -318,16 +334,11 @@
     function renderList(activeUrl = "") {
         const container = document.getElementById('list');
         container.innerHTML = "";
-        
         allData.forEach(ch => {
             if (curTab !== 'ALL' && ch.g !== curTab) return;
-            
             const itemDiv = document.createElement('div');
             itemDiv.className = `item ${ch.u === activeUrl ? 'active' : ''}`;
-            itemDiv.innerHTML = `
-                <img src="${ch.l}" onerror="this.src='https://via.placeholder.com/50?text=TV'">
-                <span>${ch.n}</span>
-            `;
+            itemDiv.innerHTML = `<img src="${ch.l}" onerror="this.src='https://via.placeholder.com/50?text=TV'"><span>${ch.n}</span>`;
             itemDiv.onclick = () => play(ch);
             container.appendChild(itemDiv);
         });
@@ -340,9 +351,7 @@
         renderList();
     }
 
-    // Chạy khi trang tải xong
     document.addEventListener('DOMContentLoaded', initApp);
 </script>
-
 </body>
 </html>
