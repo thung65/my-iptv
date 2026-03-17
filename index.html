@@ -224,26 +224,77 @@
         if (!val) return "";
         if (val.length === 32) return val;
         try {
-            return Array.from(atob(val.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0).toString(16).padStart(2,'0')).join('');
+            const decoded = atob(val.replace(/-/g,'+').replace(/_/g,'/'));
+            return Array.from(decoded, c => c.charCodeAt(0).toString(16).padStart(2,'0')).join('');
         } catch(e) { return val; }
     }
 
-    async function start() {
+    async function initPlayer() {
         shaka.polyfill.installAll();
+        if (player) await player.destroy();
         player = new shaka.Player(video);
         
-        // Cấu hình Shaka để xử lý lỗi tốt hơn
-        player.configure({ 
-            streaming: { bufferingGoal: 8, jumpLargeGaps: true },
-            manifest: { retryParameters: { maxAttempts: 2 } }
+        // Cấu hình Shaka để chạy mượt FPT và MPD
+        player.configure({
+            streaming: {
+                bufferingGoal: 10,
+                rebufferingGoal: 2,
+                jumpLargeGaps: true
+            },
+            manifest: { retryParameters: { maxAttempts: 3 } }
         });
 
-        // Bắt lỗi toàn cục của Shaka để tự động chuyển về phát gốc
-        player.addEventListener('error', (event) => {
-            console.warn("Shaka Error, switching to native...", event.detail);
-            switchToNative();
-        });
+        player.addEventListener('error', onPlayerError);
+    }
 
+    async function onPlayerError(event) {
+        // Chỉ quay về Native khi lỗi Shaka không thể phát được
+        if (event.detail.code === 3016 || event.detail.code === 3014) {
+            console.warn("Shaka Error, trying native...");
+            await player.unload();
+            video.src = video.dataset.lastUrl;
+            video.play().catch(e => {});
+        }
+    }
+
+    async function play(ch) {
+        if (!player) await initPlayer();
+        video.dataset.lastUrl = ch.u;
+        
+        await player.unload();
+        video.removeAttribute('src');
+        video.load();
+
+        // Xử lý DRM ClearKey
+        if (ch.i && ch.k) {
+            const kid = toHex(ch.i);
+            const key = toHex(ch.k);
+            let drmConfig = {};
+            // Định dạng KEY chuẩn cho Tizen/WebOS
+            const keyArr = new Uint8Array(key.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+            drmConfig[kid] = keyArr;
+            
+            player.configure({ drm: { clearKeys: drmConfig } });
+        } else {
+            player.configure({ drm: { clearKeys: {} } });
+        }
+
+        try {
+            await player.load(ch.u);
+            video.play();
+        } catch (e) {
+            // Nếu không load được bằng Shaka (ví dụ link M3U8 thường), dùng trình phát gốc
+            video.src = ch.u;
+            video.play().catch(err => {});
+        }
+        render(ch.u);
+    }
+
+    // (Phần FIXED_CHANNELS và start() giữ nguyên như cũ của bạn)
+    const FIXED_CHANNELS = [ /* Dán toàn bộ list kênh của bạn vào đây */ ];
+
+    async function start() {
+        await initPlayer();
         try {
             const r = await fetch(GITHUB_URL);
             const t = await r.text();
@@ -267,43 +318,6 @@
             allData = FIXED_CHANNELS;
             render();
         }
-    }
-
-    let currentUrl = ""; // Lưu link hiện tại để dùng nếu cần reset
-
-    async function play(ch) {
-        currentUrl = ch.u;
-        await player.unload();
-        video.removeAttribute('src');
-        video.load();
-
-        let drmConfig = {};
-        if (ch.i && ch.k) {
-            const kid = toHex(ch.i);
-            const key = toHex(ch.k);
-            // Chuyển sang Byte Array cho Tivi Samsung đời cũ
-            const keyArr = new Uint8Array(key.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
-            drmConfig[kid] = keyArr;
-            player.configure({ drm: { clearKeys: drmConfig } });
-        } else {
-            player.configure({ drm: { clearKeys: {} } });
-        }
-
-        try {
-            await player.load(ch.u);
-            video.play();
-        } catch (e) {
-            // NẾU SHAKA LỖI THÌ QUAY VỀ PHÁT GỐC (HLS/MP4 TRỰC TIẾP)
-            switchToNative();
-        }
-        render(ch.u);
-    }
-
-    function switchToNative() {
-        if (!currentUrl) return;
-        player.unload(); // Giải phóng bộ nhớ Shaka
-        video.src = currentUrl;
-        video.play().catch(e => console.log("Native Playback failed"));
     }
 
     function render(activeUrl = "") {
