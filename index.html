@@ -221,78 +221,128 @@
     ];
     
     function toHex(val) {
-        if (!val) return "";
-        if (val.length === 32) return val;
+        if (!val || val.length === 32) return val || "";
         try {
             return Array.from(atob(val.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0).toString(16).padStart(2,'0')).join('');
         } catch(e) { return val; }
     }
 
-    async function start() {
-        shaka.polyfill.installAll();
-        player = new shaka.Player(video);
-        player.configure({ streaming: { bufferingGoal: 8, rebufferingGoal: 2 } });
-
-        try {
-            const r = await fetch(GITHUB_URL);
-            const t = await r.text();
-            let ext = [], cur = null;
-            t.split('\n').forEach(l => {
-                l = l.trim();
-                if (l.startsWith('#EXTINF')) {
-                    const n = l.split(',')[1] || "";
-                    let g = "ĐỊA PHƯƠNG";
-                    if (n.includes("VTVCAB")) g = "VTVCAB";
-                    else if (n.includes("HTV")) g = "HTV";
-                    cur = { n, u: "", l: l.match(/tvg-logo="([^"]+)"/i)?.[1] || "", g };
-                } else if (l.startsWith('http') && cur) {
-                    cur.u = l; ext.push(cur); cur = null;
-                }
-            });
-            allData = [...FIXED_CHANNELS, ...ext].filter((v,i,a) => a.findIndex(x => x.u === v.u) === i);
-            render();
-            if(allData.length > 0) play(allData[0]);
-        } catch(e) {}
-    }
-
+    // 3. Hàm phát kênh chính
     async function play(ch) {
-        await player.unload();
-        let drmConfig = {};
-        if (ch.i && ch.k) {
-            drmConfig[toHex(ch.i)] = toHex(ch.k);
-            player.configure({ drm: { clearKeys: drmConfig } });
+        if (!shakaPlayer) return;
+
+        // Reset video hoàn toàn để tránh kẹt luồng PHP/MPD
+        await shakaPlayer.unload();
+        videoEl.pause();
+        videoEl.removeAttribute('src');
+        videoEl.load();
+
+        const isMPD = ch.u.toLowerCase().includes('.mpd');
+
+        if (isMPD) {
+            // Chế độ SHAKA cho link MPD
+            let drmConfig = {};
+            if (ch.i && ch.k) {
+                drmConfig[toHex(ch.i)] = toHex(ch.k);
+                shakaPlayer.configure({ drm: { clearKeys: drmConfig } });
+            } else {
+                shakaPlayer.configure({ drm: { clearKeys: {} } });
+            }
+
+            try {
+                await shakaPlayer.load(ch.u);
+                videoEl.play();
+            } catch (e) {
+                // Fallback nếu Shaka lỗi
+                videoEl.src = ch.u;
+                videoEl.play();
+            }
+        } else {
+            // Chế độ PHÁT GỐC cho link .php (VieON) hoặc .m3u8
+            shakaPlayer.configure({ drm: { clearKeys: {} } });
+            videoEl.src = ch.u;
+            videoEl.play().catch(e => console.log("Lỗi Native:", e));
         }
-        try {
-            await player.load(ch.u);
-            video.play();
-        } catch (e) {
-            video.src = ch.u;
-            video.play();
-        }
-        render(ch.u);
+
+        renderList(ch.u);
     }
 
-    function render(activeUrl = "") {
-        const box = document.getElementById('list');
-        box.innerHTML = "";
+    // 4. Khởi tạo ứng dụng
+    async function initApp() {
+        videoEl = document.getElementById('myVideo');
+        shaka.polyfill.installAll();
+        
+        if (shaka.Player.isBrowserSupported()) {
+            shakaPlayer = new shaka.Player(videoEl);
+            shakaPlayer.configure({ streaming: { bufferingGoal: 10 } });
+            
+            // Tải dữ liệu
+            try {
+                const response = await fetch(GITHUB_URL);
+                const text = await response.text();
+                let extData = [], currentItem = null;
+
+                text.split('\n').forEach(line => {
+                    line = line.trim();
+                    if (line.startsWith('#EXTINF')) {
+                        const name = line.split(',')[1] || "Kênh không tên";
+                        let group = "ĐỊA PHƯƠNG";
+                        if (name.includes("VTVCAB")) group = "VTVCAB";
+                        else if (name.includes("SCTV")) group = "SCTV";
+                        else if (name.includes("HTV")) group = "HTV";
+                        else if (name.includes("VTV")) group = "VTV";
+                        
+                        currentItem = { 
+                            n: name, 
+                            u: "", 
+                            l: line.match(/tvg-logo="([^"]+)"/i)?.[1] || "", 
+                            g: group 
+                        };
+                    } else if (line.startsWith('http') && currentItem) {
+                        currentItem.u = line;
+                        extData.push(currentItem);
+                        currentItem = null;
+                    }
+                });
+
+                allData = [...FIXED_CHANNELS, ...extData].filter((v, i, a) => a.findIndex(x => x.u === v.u) === i);
+                renderList();
+                if (allData.length > 0) play(allData[0]);
+
+            } catch (error) {
+                allData = FIXED_CHANNELS;
+                renderList();
+            }
+        }
+    }
+
+    function renderList(activeUrl = "") {
+        const container = document.getElementById('list');
+        container.innerHTML = "";
+        
         allData.forEach(ch => {
             if (curTab !== 'ALL' && ch.g !== curTab) return;
-            const div = document.createElement('div');
-            div.className = `item ${ch.u === activeUrl ? 'active' : ''}`;
-            div.innerHTML = `<img src="${ch.l}" onerror="this.src='https://via.placeholder.com/50?text=TV'"><span>${ch.n}</span>`;
-            div.onclick = () => play(ch);
-            box.appendChild(div);
+            
+            const itemDiv = document.createElement('div');
+            itemDiv.className = `item ${ch.u === activeUrl ? 'active' : ''}`;
+            itemDiv.innerHTML = `
+                <img src="${ch.l}" onerror="this.src='https://via.placeholder.com/50?text=TV'">
+                <span>${ch.n}</span>
+            `;
+            itemDiv.onclick = () => play(ch);
+            container.appendChild(itemDiv);
         });
     }
 
-    function setTab(t, btn) {
-        curTab = t;
+    function setTab(tabName, btn) {
+        curTab = tabName;
         document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        render();
+        renderList();
     }
 
-    start();
+    // Chạy khi trang tải xong
+    document.addEventListener('DOMContentLoaded', initApp);
 </script>
 </body>
-</html
+</html>
