@@ -219,3 +219,79 @@
         { n: "MUSIC BOX", u: "https://livevlisctcdnw.seenow.vn/mean/MUSICBOX/manifest.mpd", i: "a7c942778e874d43be92b8d0a0cd11b4", k: "6d54358306571658ffdb952c6560688b", l: "https://vnepg.site/logos/171.png", g: "QUỐC TẾ" },
         { n: "WOMAN", u: "https://livevlisctcdnw.seenow.vn/livesnv2/WO/manifest.mpd", i: "a7c942778e874d43be92b8d0a0cd11b4", k: "6d54358306571658ffdb952c6560688b", l: "https://vnepg.site/logos/139.png", g: "QUỐC TẾ" }
     ];
+    function toHex(val) {
+        if (!val) return "";
+        if (val.length === 32) return val;
+        try {
+            return Array.from(atob(val.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0).toString(16).padStart(2,'0')).join('');
+        } catch(e) { return val; }
+    }
+
+    async function start() {
+        shaka.polyfill.installAll();
+        player = new shaka.Player(video);
+        player.configure({ streaming: { bufferingGoal: 8, rebufferingGoal: 2 } });
+
+        try {
+            const r = await fetch(GITHUB_URL);
+            const t = await r.text();
+            let ext = [], cur = null;
+            t.split('\n').forEach(l => {
+                l = l.trim();
+                if (l.startsWith('#EXTINF')) {
+                    const n = l.split(',')[1] || "";
+                    let g = "ĐỊA PHƯƠNG";
+                    if (n.includes("VTVCAB")) g = "VTVCAB";
+                    else if (n.includes("HTV")) g = "HTV";
+                    cur = { n, u: "", l: l.match(/tvg-logo="([^"]+)"/i)?.[1] || "", g };
+                } else if (l.startsWith('http') && cur) {
+                    cur.u = l; ext.push(cur); cur = null;
+                }
+            });
+            allData = [...FIXED_CHANNELS, ...ext].filter((v,i,a) => a.findIndex(x => x.u === v.u) === i);
+            render();
+            if(allData.length > 0) play(allData[0]);
+        } catch(e) {}
+    }
+
+    async function play(ch) {
+        await player.unload();
+        let drmConfig = {};
+        if (ch.i && ch.k) {
+            drmConfig[toHex(ch.i)] = toHex(ch.k);
+            player.configure({ drm: { clearKeys: drmConfig } });
+        }
+        try {
+            await player.load(ch.u);
+            video.play();
+        } catch (e) {
+            video.src = ch.u;
+            video.play();
+        }
+        render(ch.u);
+    }
+
+    function render(activeUrl = "") {
+        const box = document.getElementById('list');
+        box.innerHTML = "";
+        allData.forEach(ch => {
+            if (curTab !== 'ALL' && ch.g !== curTab) return;
+            const div = document.createElement('div');
+            div.className = `item ${ch.u === activeUrl ? 'active' : ''}`;
+            div.innerHTML = `<img src="${ch.l}" onerror="this.src='https://via.placeholder.com/50?text=TV'"><span>${ch.n}</span>`;
+            div.onclick = () => play(ch);
+            box.appendChild(div);
+        });
+    }
+
+    function setTab(t, btn) {
+        curTab = t;
+        document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        render();
+    }
+
+    start();
+</script>
+</body>
+</html
