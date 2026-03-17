@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAMSUNG TV PLAYER</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
+    <style>
+        body { margin: 0; background: #000; color: #fff; font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        #video-box { width: 100%; aspect-ratio: 16/9; background: #000; }
+        video { width: 100%; height: 100%; }
+        .tabs { display: flex; overflow-x: auto; background: #111; padding: 10px; gap: 5px; }
+        .tabs button { padding: 8px 15px; border: none; background: #333; color: #fff; cursor: pointer; border-radius: 4px; white-space: nowrap; }
+        .tabs button.active { background: #ffcc00; color: #000; }
+        #list { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; padding: 10px; overflow-y: auto; flex: 1; }
+        .item { background: #222; padding: 10px; text-align: center; border-radius: 5px; cursor: pointer; border: 2px solid transparent; }
+        .item.active { border-color: #ffcc00; }
+        .item img { width: 100%; height: 40px; object-fit: contain; }
+        .item span { font-size: 11px; display: block; margin-top: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    </style>
+</head>
+<body>
+
+<div id="video-box">
+    <video id="video" controls autoplay playsinline></video>
+</div>
+
+<div class="tabs">
+    <button class="active" onclick="setTab('ALL', this)">TẤT CẢ</button>
+    <button onclick="setTab('VTV', this)">VTV</button>
+    <button onclick="setTab('SCTV', this)">SCTV</button>
+    <button onclick="setTab('VTVCAB', this)">VTVCAB</button>
+    <button onclick="setTab('HTV', this)">HTV</button>
+    <button onclick="setTab('QUỐC TẾ', this)">QUỐC TẾ</button>
+</div>
+
+<div id="list">Đang tải kênh...</div>
+
+<script>
+    const GITHUB_URL = "https://raw.githubusercontent.com/thung65/Iptv-vietnam/refs/heads/main/mytvt";
+    const video = document.getElementById('video');
+    let player, allData = [], curTab = "ALL";
+
+    // Danh sách kênh cố định (Thêm kênh VieON của bạn vào đây)
+    const FIXED_CHANNELS = [
+        { n: "ĐỒNG NAI 3", u: "https://vietanhtv.id.vn/vieon.php?type=tivi&kenh=dong-nai-3", l: "https://vnepg.site/logos/95.png", g: "ĐỊA PHƯƠNG" }
+    ];
+
+    function toHex(val) {
+        if (!val) return "";
+        if (val.length === 32) return val;
+        try {
+            return Array.from(atob(val.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0).toString(16).padStart(2,'0')).join('');
+        } catch(e) { return val; }
+    }
+
+    async function start() {
+        shaka.polyfill.installAll();
+        player = new shaka.Player(video);
+        player.configure({ streaming: { bufferingGoal: 8, rebufferingGoal: 2 } });
+
+        try {
+            const r = await fetch(GITHUB_URL);
+            const t = await r.text();
+            let ext = [], cur = null;
+            t.split('\n').forEach(l => {
+                l = l.trim();
+                if (l.startsWith('#EXTINF')) {
+                    const n = l.split(',')[1] || "";
+                    let g = "ĐỊA PHƯƠNG";
+                    if (n.includes("VTVCAB")) g = "VTVCAB";
+                    else if (n.includes("HTV")) g = "HTV";
+                    else if (n.includes("SCTV")) g = "SCTV";
+                    else if (n.includes("VTV")) g = "VTV";
+                    cur = { n, u: "", l: l.match(/tvg-logo="([^"]+)"/i)?.[1] || "", g };
+                } else if (l.startsWith('http') && cur) {
+                    cur.u = l; ext.push(cur); cur = null;
+                }
+            });
+            allData = [...FIXED_CHANNELS, ...ext].filter((v,i,a) => a.findIndex(x => x.u === v.u) === i);
+            render();
+            if(allData.length > 0) play(allData[0]);
+        } catch(e) {
+            allData = FIXED_CHANNELS;
+            render();
+        }
+    }
+
+    async function play(ch) {
+        // 1. Dọn dẹp luồng cũ để tránh đứng hình
+        await player.unload();
+        video.removeAttribute('src');
+        video.load();
+
+        // 2. Cấu hình DRM nếu có
+        let drmConfig = {};
+        if (ch.i && ch.k) {
+            drmConfig[toHex(ch.i)] = toHex(ch.k);
+            player.configure({ drm: { clearKeys: drmConfig } });
+        } else {
+            player.configure({ drm: { clearKeys: {} } });
+        }
+
+        // 3. Logic phát: Thử Shaka trước, nếu lỗi (như link .php) thì dùng Native
+        try {
+            await player.load(ch.u);
+            video.play();
+        } catch (e) {
+            console.log("Shaka lỗi, chuyển sang phát gốc (Native)...");
+            video.src = ch.u;
+            video.play().catch(err => console.log("Không thể phát kênh này"));
+        }
+        render(ch.u);
+    }
+
+    function render(activeUrl = "") {
+        const box = document.getElementById('list');
+        box.innerHTML = "";
+        allData.forEach(ch => {
+            if (curTab !== 'ALL' && ch.g !== curTab) return;
+            const div = document.createElement('div');
+            div.className = `item ${ch.u === activeUrl ? 'active' : ''}`;
+            div.innerHTML = `<img src="${ch.l}" onerror="this.src='https://via.placeholder.com/50?text=TV'"><span>${ch.n}</span>`;
+            div.onclick = () => play(ch);
+            box.appendChild(div);
+        });
+    }
+
+    function setTab(t, btn) {
+        curTab = t;
+        document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        render();
+    }
+
+    start();
+</script>
+</body>
+</html>
+
