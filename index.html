@@ -220,81 +220,19 @@
         { n: "WOMAN", u: "https://livevlisctcdnw.seenow.vn/livesnv2/WO/manifest.mpd", i: "a7c942778e874d43be92b8d0a0cd11b4", k: "6d54358306571658ffdb952c6560688b", l: "https://vnepg.site/logos/139.png", g: "QUỐC TẾ" }
     ];
 
-    function toHex(val) {
+   function toHex(val) {
         if (!val) return "";
         if (val.length === 32) return val;
         try {
-            const decoded = atob(val.replace(/-/g,'+').replace(/_/g,'/'));
-            return Array.from(decoded, c => c.charCodeAt(0).toString(16).padStart(2,'0')).join('');
+            return Array.from(atob(val.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0).toString(16).padStart(2,'0')).join('');
         } catch(e) { return val; }
     }
 
-    async function initPlayer() {
-        shaka.polyfill.installAll();
-        if (player) await player.destroy();
-        player = new shaka.Player(video);
-        
-        // Cấu hình Shaka để chạy mượt FPT và MPD
-        player.configure({
-            streaming: {
-                bufferingGoal: 10,
-                rebufferingGoal: 2,
-                jumpLargeGaps: true
-            },
-            manifest: { retryParameters: { maxAttempts: 3 } }
-        });
-
-        player.addEventListener('error', onPlayerError);
-    }
-
-    async function onPlayerError(event) {
-        // Chỉ quay về Native khi lỗi Shaka không thể phát được
-        if (event.detail.code === 3016 || event.detail.code === 3014) {
-            console.warn("Shaka Error, trying native...");
-            await player.unload();
-            video.src = video.dataset.lastUrl;
-            video.play().catch(e => {});
-        }
-    }
-
-    async function play(ch) {
-        if (!player) await initPlayer();
-        video.dataset.lastUrl = ch.u;
-        
-        await player.unload();
-        video.removeAttribute('src');
-        video.load();
-
-        // Xử lý DRM ClearKey
-        if (ch.i && ch.k) {
-            const kid = toHex(ch.i);
-            const key = toHex(ch.k);
-            let drmConfig = {};
-            // Định dạng KEY chuẩn cho Tizen/WebOS
-            const keyArr = new Uint8Array(key.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
-            drmConfig[kid] = keyArr;
-            
-            player.configure({ drm: { clearKeys: drmConfig } });
-        } else {
-            player.configure({ drm: { clearKeys: {} } });
-        }
-
-        try {
-            await player.load(ch.u);
-            video.play();
-        } catch (e) {
-            // Nếu không load được bằng Shaka (ví dụ link M3U8 thường), dùng trình phát gốc
-            video.src = ch.u;
-            video.play().catch(err => {});
-        }
-        render(ch.u);
-    }
-
-    // (Phần FIXED_CHANNELS và start() giữ nguyên như cũ của bạn)
-    const FIXED_CHANNELS = [ /* Dán toàn bộ list kênh của bạn vào đây */ ];
-
     async function start() {
-        await initPlayer();
+        shaka.polyfill.installAll();
+        player = new shaka.Player(video);
+        player.configure({ streaming: { bufferingGoal: 8, rebufferingGoal: 2 } });
+
         try {
             const r = await fetch(GITHUB_URL);
             const t = await r.text();
@@ -314,10 +252,24 @@
             allData = [...FIXED_CHANNELS, ...ext].filter((v,i,a) => a.findIndex(x => x.u === v.u) === i);
             render();
             if(allData.length > 0) play(allData[0]);
-        } catch(e) {
-            allData = FIXED_CHANNELS;
-            render();
+        } catch(e) {}
+    }
+
+    async function play(ch) {
+        await player.unload();
+        let drmConfig = {};
+        if (ch.i && ch.k) {
+            drmConfig[toHex(ch.i)] = toHex(ch.k);
+            player.configure({ drm: { clearKeys: drmConfig } });
         }
+        try {
+            await player.load(ch.u);
+            video.play();
+        } catch (e) {
+            video.src = ch.u;
+            video.play();
+        }
+        render(ch.u);
     }
 
     function render(activeUrl = "") {
