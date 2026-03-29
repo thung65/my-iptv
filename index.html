@@ -272,50 +272,40 @@
     }
 
     async function play(ch) {
-        try {
-            await player.unload();
-            video.pause();
-            video.removeAttribute('src');
-            video.load();
-        } catch(e) {}
-
-        let u = ch.u;
-        let d = {};
-
+        await player.unload();
+        let drmConfig = {};
         if (ch.i && ch.k) {
-            d[toHex(ch.i)] = toHex(ch.k);
-            player.configure({ drm: { clearKeys: d } });
-        } else {
-            player.configure({ drm: { clearKeys: {} } });
+            drmConfig[toHex(ch.i)] = toHex(ch.k);
+            player.configure({ drm: { clearKeys: drmConfig } });
         }
-
         try {
-            await player.load(u);
+            await player.load(ch.u);
             video.play();
         } catch (e) {
-            let a = u.includes('https://') ? u.replace('https://', 'http://') : u.replace('http://', 'https://');
-            video.src = a;
-            video.play().catch(() => {
-                video.src = u;
-                video.play().catch(() => {});
-            });
+            console.warn("Lỗi Shaka, đang chuyển sang trình phát mặc định...");
+            video.src = ch.u;
+            video.play();
+            
+            // Nếu sau 3 giây không chạy, mở hẳn link ra tab mới
+            setTimeout(() => {
+                if (video.paused || video.readyState === 0) {
+                    // Mở tab mới sẽ dễ kích hoạt ứng dụng ngoài hơn
+                    window.open(ch.u, '_blank');
+                }
+            }, 3000);
         }
         render(ch.u);
     }
 
-    function render() {
+    function render(activeUrl = "") {
         const box = document.getElementById('list');
         box.innerHTML = "";
-        allData.forEach((ch, i) => {
+        allData.forEach(ch => {
             if (curTab !== 'ALL' && ch.g !== curTab) return;
             const div = document.createElement('div');
-            div.className = `item ${curIdx === i ? 'active' : ''}`;
-            div.innerHTML = `
-                ${ch.v ? '<div class="vip">VIP</div>' : ''}
-                <div class="img-wrap"><img src="${ch.l || 'https://via.placeholder.com/100x45/222/555?text=TV'}" onerror="this.src='https://via.placeholder.com/100x45/222/555?text=TV'"></div>
-                <span>${ch.n}</span>
-            `;
-            div.onclick = () => play(i);
+            div.className = `item ${ch.u === activeUrl ? 'active' : ''}`;
+            div.innerHTML = `<img src="${ch.l}" onerror="this.src='https://via.placeholder.com/50?text=TV'"><span>${ch.n}</span>`;
+            div.onclick = () => play(ch);
             box.appendChild(div);
         });
     }
@@ -325,8 +315,9 @@
         document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         render();
-                        }
+    }
+
     start();
 </script>
-</body
+</body>
 </html>
