@@ -271,57 +271,47 @@
         } catch(e) {}
     }
 
-async function play(ch) {
-    console.log("Đang nạp kênh:", ch.n);
-    
-    // 1. Dọn dẹp sạch sẽ bộ nhớ cũ (Bắt buộc để không bị treo khi đổi kênh MPD)
-    try {
-        await player.unload();
-    } catch (e) {}
-    
-    video.pause();
-    video.removeAttribute('src'); // Xóa link cũ hoàn toàn
-    video.load();
-
-    let streamUrl = ch.u;
-
-    // 2. Nếu là kênh MPD (Có Key i và k) -> Bắt buộc dùng Shaka
-    if (ch.i && ch.k) {
-        let drmConfig = {};
-        drmConfig[toHex(ch.i)] = toHex(ch.k);
-        player.configure({ drm: { clearKeys: drmConfig } });
-        
+    async function play(idx) {
+        curIdx = idx; render();
+        const ch = allData[idx];
+        if (ch.i && ch.k) {
+            player.configure({ drm: { clearKeys: { [toHex(ch.i)]: toHex(ch.k) } } });
+        } else {
+            player.configure({ drm: { clearKeys: {} } });
+        }
         try {
-            await player.load(streamUrl);
+            await player.load(ch.u);
             video.play();
-            updateUI(ch.n);
-            return; // Chạy xong MPD thì dừng luôn
         } catch (e) {
-            console.error("Lỗi MPD DRM:", e);
+            if (ch.u.includes('.m3u8')) {
+                video.src = ch.u; video.play();
+            }
         }
     }
 
-    // 3. Nếu là link HTTP hoặc HLS bình thường (.m3u8)
-    // Dùng "Chiêu cuối": Đẩy thẳng cho thẻ Video để Mux.js xử lý
-    console.log("Đang phát qua nhân trình duyệt + Mux.js");
-    video.src = streamUrl;
-    
-    video.play().catch(() => {
-        // Nếu trình duyệt chặn HTTP, thử đổi sang HTTPS (hoặc ngược lại) duy nhất 1 lần
-        let altUrl = streamUrl.includes('https') ? streamUrl.replace('https','http') : streamUrl.replace('http','https');
-        video.src = altUrl;
-        video.play().catch(err => console.log("Kênh thực sự không phát được"));
-    });
+    function render() {
+        const box = document.getElementById('list');
+        box.innerHTML = "";
+        allData.forEach((ch, i) => {
+            if (curTab !== 'ALL' && ch.g !== curTab) return;
+            const div = document.createElement('div');
+            div.className = `item ${curIdx === i ? 'active' : ''}`;
+            div.innerHTML = `
+                ${ch.v ? '<div class="vip">VIP</div>' : ''}
+                <div class="img-wrap"><img src="${ch.l || 'https://via.placeholder.com/100x45/222/555?text=TV'}" onerror="this.src='https://via.placeholder.com/100x45/222/555?text=TV'"></div>
+                <span>${ch.n}</span>
+            `;
+            div.onclick = () => play(i);
+            box.appendChild(div);
+        });
+    }
 
-    updateUI(ch.n);
-}
     function setTab(t, btn) {
         curTab = t;
         document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         render();
-    }
-
+                        }
     start();
 </script>
 </body
