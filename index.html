@@ -272,62 +272,49 @@
     }
 
 async function play(ch) {
-    // 1. Dọn dẹp trình phát cũ hoàn toàn để tránh kẹt dữ liệu (Rất quan trọng cho MPD)
-    await player.unload();
-    video.src = ""; 
+    console.log("Đang nạp kênh:", ch.n);
+    
+    // 1. Dọn dẹp sạch sẽ bộ nhớ cũ (Bắt buộc để không bị treo khi đổi kênh MPD)
+    try {
+        await player.unload();
+    } catch (e) {}
+    
+    video.pause();
+    video.removeAttribute('src'); // Xóa link cũ hoàn toàn
     video.load();
 
     let streamUrl = ch.u;
-    
-    // 2. Cấu hình DRM (ClearKey) - Giữ nguyên, không động vào http/https ở đây
-    let drmConfig = {};
+
+    // 2. Nếu là kênh MPD (Có Key i và k) -> Bắt buộc dùng Shaka
     if (ch.i && ch.k) {
+        let drmConfig = {};
         drmConfig[toHex(ch.i)] = toHex(ch.k);
-        player.configure({
-            drm: { clearKeys: drmConfig },
-            streaming: { lowLatencyMode: true } // Giúp MPD load nhanh hơn
-        });
-    } else {
-        // Nếu không có Key, xóa cấu hình DRM cũ để tránh xung đột
-        player.configure({ drm: { clearKeys: {} } });
-    }
-
-    try {
-        // 3. THỬ PHÁT GỐC (Ưu tiên tuyệt đối link trong danh sách của Huy)
-        await player.load(streamUrl);
-        video.play();
-        console.log("Phát thành công link gốc:", streamUrl);
-    } catch (e) {
-        console.warn("Lỗi phát Shaka, thử dùng nhân trình duyệt + mux.js...");
+        player.configure({ drm: { clearKeys: drmConfig } });
         
-        // 4. CHIÊU CUỐI: Nếu Shaka (MPD/HLS) lỗi, dùng thẳng thẻ video
-        // Cách này tận dụng mux.min.js mà Huy vừa thêm để giải mã http/ts
-        video.src = streamUrl;
-        video.play().catch(() => {
-            // Nếu vẫn lỗi, lúc này mới thử đổi giao thức như một lựa chọn cuối cùng
-            let altUrl = streamUrl.startsWith('https') ? streamUrl.replace('https','http') : streamUrl.replace('http','https');
-            video.src = altUrl;
-            video.play().catch(() => console.error("Kênh này thực sự hỏng luồng!"));
-        });
+        try {
+            await player.load(streamUrl);
+            video.play();
+            updateUI(ch.n);
+            return; // Chạy xong MPD thì dừng luôn
+        } catch (e) {
+            console.error("Lỗi MPD DRM:", e);
+        }
     }
 
-    // Cập nhật tên lên thanh ngang (Nút Play bên trái vẫn giữ nguyên)
-    document.getElementById('chan-name').innerText = ch.n;
+    // 3. Nếu là link HTTP hoặc HLS bình thường (.m3u8)
+    // Dùng "Chiêu cuối": Đẩy thẳng cho thẻ Video để Mux.js xử lý
+    console.log("Đang phát qua nhân trình duyệt + Mux.js");
+    video.src = streamUrl;
+    
+    video.play().catch(() => {
+        // Nếu trình duyệt chặn HTTP, thử đổi sang HTTPS (hoặc ngược lại) duy nhất 1 lần
+        let altUrl = streamUrl.includes('https') ? streamUrl.replace('https','http') : streamUrl.replace('http','https');
+        video.src = altUrl;
+        video.play().catch(err => console.log("Kênh thực sự không phát được"));
+    });
+
+    updateUI(ch.n);
 }
-
-    function render(activeUrl = "") {
-        const box = document.getElementById('list');
-        box.innerHTML = "";
-        allData.forEach(ch => {
-            if (curTab !== 'ALL' && ch.g !== curTab) return;
-            const div = document.createElement('div');
-            div.className = `item ${ch.u === activeUrl ? 'active' : ''}`;
-            div.innerHTML = `<img src="${ch.l}" onerror="this.src='https://via.placeholder.com/50?text=TV'"><span>${ch.n}</span>`;
-            div.onclick = () => play(ch);
-            box.appendChild(div);
-        });
-    }
-
     function setTab(t, btn) {
         curTab = t;
         document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
