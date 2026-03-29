@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>XEM TV</title>
+    <title>Xem TV Trực Tuyến</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mux.js/6.0.1/mux.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
@@ -282,17 +282,21 @@
             await player.load(ch.u);
             video.play();
         } catch (e) {
-            console.warn("Lỗi Shaka, đang chuyển sang trình phát mặc định...");
-            video.src = ch.u;
-            video.play();
+            console.log("Shaka không hỗ trợ, ép trình duyệt tự phát...");
             
-            // Nếu sau 3 giây không chạy, mở hẳn link ra tab mới
-            setTimeout(() => {
-                if (video.paused || video.readyState === 0) {
-                    // Mở tab mới sẽ dễ kích hoạt ứng dụng ngoài hơn
-                    window.open(ch.u, '_blank');
-                }
-            }, 3000);
+            // Bước 1: Ngắt kết nối Shaka Player hoàn toàn
+            await player.detach(); 
+            
+            // Bước 2: Dùng trình phát gốc của trình duyệt
+            video.src = ch.u;
+            video.load(); // Buộc trình duyệt tải lại nguồn mới
+            
+            // Bước 3: Hiện thanh điều khiển gốc (Play/Pause/Volume) của trình duyệt để Huy bấm được
+            video.controls = true; 
+            
+            video.play().catch(() => {
+                console.log("Trình duyệt cần Huy bấm Play thủ công");
+            });
         }
         render(ch.u);
     }
@@ -319,5 +323,5 @@
 
     start();
 </script>
-</body>
+</body
 </html>
