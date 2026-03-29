@@ -355,6 +355,18 @@
             box.appendChild(div);
         });
     }
+    function toggleFS() {
+    const v = document.getElementById('video');
+    if (!document.fullscreenElement) {
+        // Phóng to video
+        if (v.requestFullscreen) v.requestFullscreen();
+        else if (v.webkitRequestFullscreen) v.webkitRequestFullscreen(); // Cho Safari/Chrome cũ
+        else if (v.msRequestFullscreen) v.msRequestFullscreen();
+    } else {
+        // Thu nhỏ lại
+        if (document.exitFullscreen) document.exitFullscreen();
+    }
+    }
 
     function setTab(t, btn) {
         curTab = t;
