@@ -173,7 +173,7 @@
         { n: "SCTV15", u: "https://livevlisctcdnw.seenow.vn/mean/SCTV15HD/manifest.mpd", i: "a7c942778e874d43be92b8d0a0cd11b4", k: "6d54358306571658ffdb952c6560688b", l: "https://vnepg.site/logos/58.png", g: "SCTV" },
         { n: "SCTV16", u: "https://liveh34.vtvprime.vn/hls/SCTV16/04.m3u8", l: "https://vnepg.site/logos/59.png", g: "SCTV" },
         { n: "SCTV17", u: "https://livevlisctcdnw.seenow.vn/mean/SCTV17/manifest.mpd", i: "a7c942778e874d43be92b8d0a0cd11b4", k: "6d54358306571658ffdb952c6560688b", l: "https://vnepg.site/logos/60.png", g: "SCTV" },
-        { n: "SCTV18", u: "http://akasaijr.myftp.org:21585/vtc1/index.m3u8", l: "https://vnepg.site/logos/61.png", g: "SCTV" },
+        { n: "SCTV18", u: "https://liveh34.vtvprime.vn/hls/SCTV18/03.m3u8", l: "https://vnepg.site/logos/61.png", g: "SCTV" },
         { n: "SCTV19", u: "https://liveh34.vtvprime.vn/hls/SCTV19/03.m3u8", l: "https://vnepg.site/logos/62.png", g: "SCTV" },
         { n: "SCTV20", u: "https://liveh34.vtvprime.vn/hls/SCTV20/03.m3u8", l: "https://vnepg.site/logos/63.png", g: "SCTV" },
         { n: "SCTV21", u: "https://liveh34.vtvprime.vn/hls/SCTV21/03.m3u8", l: "https://vnepg.site/logos/64.png", g: "SCTV" },
@@ -278,26 +278,30 @@
             drmConfig[toHex(ch.i)] = toHex(ch.k);
             player.configure({ drm: { clearKeys: drmConfig } });
         }
+    try {
+        await player.load(streamUrl);
+        video.play();
+    } catch (e) {
+        console.warn("Link gốc lỗi, đang thử chiêu đổi giao thức...");
+
+        let backupUrl = streamUrl;
+        if (streamUrl.startsWith('https://')) {
+            backupUrl = streamUrl.replace('https://', 'http://');
+        } else if (streamUrl.startsWith('http://')) {
+            backupUrl = streamUrl.replace('http://', 'https://');
+        }
+
         try {
-            await player.load(ch.u);
+            await player.load(backupUrl);
             video.play();
-        } catch (e) {
-            console.log("Shaka không hỗ trợ, ép trình duyệt tự phát...");
-            
-            // Bước 1: Ngắt kết nối Shaka Player hoàn toàn
-            await player.detach(); 
-            
-            // Bước 2: Dùng trình phát gốc của trình duyệt
-            video.src = ch.u;
-            video.load(); // Buộc trình duyệt tải lại nguồn mới
-            
-            // Bước 3: Hiện thanh điều khiển gốc (Play/Pause/Volume) của trình duyệt để Huy bấm được
-            video.controls = true; 
-            
+        } catch (e2) {
+            // Nếu vẫn lỗi thì dùng trình phát gốc (mồi bằng mux.js)
+            video.src = backupUrl;
             video.play().catch(() => {
-                console.log("Trình duyệt cần Huy bấm Play thủ công");
+                console.error("Kênh này thực sự có vấn đề về luồng!");
             });
         }
+    }
         render(ch.u);
     }
 
