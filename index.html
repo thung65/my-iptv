@@ -271,39 +271,49 @@
         } catch(e) {}
     }
 
-    async function play(ch) {
-        await player.unload();
-        let drmConfig = {};
-        if (ch.i && ch.k) {
-            drmConfig[toHex(ch.i)] = toHex(ch.k);
-            player.configure({ drm: { clearKeys: drmConfig } });
-        }
+async function play(ch) {
+    // 1. Dọn dẹp trình phát cũ hoàn toàn để tránh kẹt dữ liệu (Rất quan trọng cho MPD)
+    await player.unload();
+    video.src = ""; 
+    video.load();
+
+    let streamUrl = ch.u;
+    
+    // 2. Cấu hình DRM (ClearKey) - Giữ nguyên, không động vào http/https ở đây
+    let drmConfig = {};
+    if (ch.i && ch.k) {
+        drmConfig[toHex(ch.i)] = toHex(ch.k);
+        player.configure({
+            drm: { clearKeys: drmConfig },
+            streaming: { lowLatencyMode: true } // Giúp MPD load nhanh hơn
+        });
+    } else {
+        // Nếu không có Key, xóa cấu hình DRM cũ để tránh xung đột
+        player.configure({ drm: { clearKeys: {} } });
+    }
+
     try {
+        // 3. THỬ PHÁT GỐC (Ưu tiên tuyệt đối link trong danh sách của Huy)
         await player.load(streamUrl);
         video.play();
+        console.log("Phát thành công link gốc:", streamUrl);
     } catch (e) {
-        console.warn("Link gốc lỗi, đang thử chiêu đổi giao thức...");
-
-        let backupUrl = streamUrl;
-        if (streamUrl.startsWith('https://')) {
-            backupUrl = streamUrl.replace('https://', 'http://');
-        } else if (streamUrl.startsWith('http://')) {
-            backupUrl = streamUrl.replace('http://', 'https://');
-        }
-
-        try {
-            await player.load(backupUrl);
-            video.play();
-        } catch (e2) {
-            // Nếu vẫn lỗi thì dùng trình phát gốc (mồi bằng mux.js)
-            video.src = backupUrl;
-            video.play().catch(() => {
-                console.error("Kênh này thực sự có vấn đề về luồng!");
-            });
-        }
+        console.warn("Lỗi phát Shaka, thử dùng nhân trình duyệt + mux.js...");
+        
+        // 4. CHIÊU CUỐI: Nếu Shaka (MPD/HLS) lỗi, dùng thẳng thẻ video
+        // Cách này tận dụng mux.min.js mà Huy vừa thêm để giải mã http/ts
+        video.src = streamUrl;
+        video.play().catch(() => {
+            // Nếu vẫn lỗi, lúc này mới thử đổi giao thức như một lựa chọn cuối cùng
+            let altUrl = streamUrl.startsWith('https') ? streamUrl.replace('https','http') : streamUrl.replace('http','https');
+            video.src = altUrl;
+            video.play().catch(() => console.error("Kênh này thực sự hỏng luồng!"));
+        });
     }
-        render(ch.u);
-    }
+
+    // Cập nhật tên lên thanh ngang (Nút Play bên trái vẫn giữ nguyên)
+    document.getElementById('chan-name').innerText = ch.n;
+}
 
     function render(activeUrl = "") {
         const box = document.getElementById('list');
