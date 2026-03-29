@@ -271,22 +271,36 @@
         } catch(e) {}
     }
 
-    async function play(idx) {
-        curIdx = idx; render();
-        const ch = allData[idx];
+    async function play(ch) {
+        try {
+            await player.unload();
+            video.pause();
+            video.removeAttribute('src');
+            video.load();
+        } catch(e) {}
+
+        let u = ch.u;
+        let d = {};
+
         if (ch.i && ch.k) {
-            player.configure({ drm: { clearKeys: { [toHex(ch.i)]: toHex(ch.k) } } });
+            d[toHex(ch.i)] = toHex(ch.k);
+            player.configure({ drm: { clearKeys: d } });
         } else {
             player.configure({ drm: { clearKeys: {} } });
         }
+
         try {
-            await player.load(ch.u);
+            await player.load(u);
             video.play();
         } catch (e) {
-            if (ch.u.includes('.m3u8')) {
-                video.src = ch.u; video.play();
-            }
+            let a = u.includes('https://') ? u.replace('https://', 'http://') : u.replace('http://', 'https://');
+            video.src = a;
+            video.play().catch(() => {
+                video.src = u;
+                video.play().catch(() => {});
+            });
         }
+        render(ch.u);
     }
 
     function render() {
