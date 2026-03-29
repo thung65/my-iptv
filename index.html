@@ -283,8 +283,16 @@
             await player.load(ch.u);
             video.play();
         } catch (e) {
+            console.warn("Lỗi Shaka, đang chuyển sang trình phát mặc định...");
             video.src = ch.u;
             video.play();
+            
+            // Nếu sau 3 giây vẫn không chạy được thì mở link bằng app ngoài luôn
+            setTimeout(() => {
+                if (video.paused || video.readyState === 0) {
+                    window.location.href = ch.u;
+                }
+            }, 3000);
         }
         render(ch.u);
     }
