@@ -15,11 +15,23 @@
         video { width: 100%; height: 100%; object-fit: contain; }
 
         /* Thanh điều khiển kiểu Hplus */
-        #controls {
-            position: absolute; bottom: 0; left: 0; width: 100%;
-            background: rgba(0,0,0,0.6); display: flex; align-items: center;
-            padding: 8px; box-sizing: border-box; z-index: 10;
-        }
+        #controls 
+        position: absolute;
+        bottom: 15px; /* Cách đáy video 15px */
+        left: 15px;   /* Cách lề trái 15px */
+        right: 15px;  /* Cách lề phải 15px */
+        width: auto;  /* Để nó tự co giãn theo left/right */
+        background: rgba(0, 0, 0, 0.8);
+        display: flex;
+        align-items: center;
+        padding: 10px 15px;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        z-index: 10;
+        box-sizing: border-box;
+}
         #play-btn { cursor: pointer; font-size: 20px; width: 40px; text-align: center; }
         #chan-name { flex-grow: 1; font-size: 14px; color: #ffcc00; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
