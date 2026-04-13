@@ -7,7 +7,11 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/api/$1.php"
+      "dest": "/api/$1.php",
+      "headers": {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+      }
     }
   ]
 }
