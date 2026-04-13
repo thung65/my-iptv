@@ -1,12 +1,8 @@
 <?php
-/**
- * CLEARKEY DRM API - BY TRẦN TẤT KHÔI
- * Cập nhật: 11/04/2026 - Đồng bộ 100% theo danh sách M3U mới
- */
-
 header('Content-Type: application/json; charset=utf-8');
-header('Content-Disposition: inline'); // Ép trình duyệt hiển thị nội dung tại chỗ
+header('Content-Disposition: inline'); // Quan trọng: Bảo trình duyệt hiện nội dung, không tải
 header("Access-Control-Allow-Origin: *");
+header("Cache-Control: no-cache, must-revalidate"); // Không cho lưu cache cũ
 
 $key_storage = [
     // --- Nhóm Sự kiện trực tiếp 360 ---
