@@ -5,6 +5,7 @@
  */
 
 header('Content-Type: application/json; charset=utf-8');
+header('Content-Disposition: inline'); // Ép trình duyệt hiển thị nội dung tại chỗ
 header("Access-Control-Allow-Origin: *");
 
 $key_storage = [
