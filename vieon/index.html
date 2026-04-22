@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <script>
+        // Lấy tham số id từ link
+        const urlParams = new URLSearchParams(window.location.search);
+        const id = urlParams.get('id');
+const type = urlParams.get('type') || 'vieon';
+
+        if (id) {
+            // Nếu có ID, nhảy sang link nguồn ngay lập tức
+            let finalUrl = `https://sgclient.duckdns.org/source/${type}.m3u8?id=${id}`;
+            window.location.href = finalUrl;
+        }
+        // Nếu không có ID, trang sẽ TRẮNG TINH đúng ý Huy
+    </script>
+</head>
+<body style="background:white;">
+</body>
+</html>
