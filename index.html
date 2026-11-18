@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản Trị Server - aaPanel & SSH</title>
+    <!-- Thư viện CSS rút gọn cho xterm.js -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body, html {
+            height: 100%;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e1e1e;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+        }
+        /* Thanh menu chuyển đổi */
+        .navbar {
+            display: flex;
+            align-items: center;
+            background-color: #252526;
+            padding: 10px 20px;
+            border-bottom: 1px solid #333;
+            gap: 10px;
+        }
+        .navbar-title {
+            font-weight: bold;
+            margin-right: 20px;
+            color: #4ec9b0;
+        }
+        .tab-btn {
+            padding: 8px 16px;
+            background-color: #333333;
+            color: #cccccc;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        .tab-btn:hover {
+            background-color: #444444;
+        }
+        .tab-btn.active {
+            background-color: #007acc;
+            color: #ffffff;
+            font-weight: bold;
+        }
+        /* Khu vực nội dung chính */
+        .content {
+            flex: 1;
+            position: relative;
+            width: 100%;
+            height: calc(100vh - 50px);
+        }
+        .tab-pane {
+            display: none;
+            width: 100%;
+            height: 100%;
+        }
+        .tab-pane.active {
+            display: flex;
+            flex-direction: column;
+        }
+        /* Iframe cho aaPanel */
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background-color: #fff;
+        }
+        /* Khu vực SSH Terminal */
+        .ssh-bar {
+            display: flex;
+            gap: 10px;
+            padding: 10px;
+            background-color: #2d2d2d;
+            border-bottom: 1px solid #333;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .ssh-bar input {
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: 1px solid #444;
+            background-color: #1e1e1e;
+            color: #fff;
+            font-size: 13px;
+        }
+        .ssh-bar button {
+            padding: 6px 15px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .ssh-bar button:hover {
+            background-color: #218838;
+        }
+        #terminal-container {
+            flex: 1;
+            padding: 10px;
+            background-color: #000000;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Thanh điều hướng -->
+    <div class="navbar">
+        <span class="navbar-title">SERVER MANAGER</span>
+        <button class="tab-btn active" onclick="switchTab('aapanel', this)">Panel aaPanel</button>
+        <button class="tab-btn" onclick="switchTab('terminal', this)">SSH Terminal</button>
+    </div>
+
+    <!-- Nội dung các tab -->
+    <div class="content">
+        <!-- Tab 1: aaPanel (Đã cập nhật đường dẫn bảo mật /ed8b0ef5) -->
+        <div id="aapanel" class="tab-pane active">
+            <iframe src="http://23.95.31" title="aaPanel"></iframe>
+        </div>
+
+        <!-- Tab 2: SSH Terminal -->
+        <div id="terminal" class="tab-pane">
+            <div class="ssh-bar">
+                <input type="text" id="ws-url" value="ws://23.95.31.196:8080" placeholder="WebSocket Bridge" style="width: 190px;" title="Địa chỉ cầu nối WebSocket">
+                <input type="text" id="ssh-host" value="23.95.31.196" placeholder="IP Server" style="width: 125px;">
+                <input type="number" id="ssh-port" value="45860" placeholder="Port" style="width: 75px;">
+                <input type="text" id="ssh-user" value="root" placeholder="Username" style="width: 90px;">
+                <input type="password" id="ssh-pass" value="root" placeholder="Mật khẩu SSH" style="width: 110px;">
+                <button onclick="connectSSH()">Kết nối SSH</button>
+            </div>
+            <div id="terminal-container"></div>
+        </div>
+    </div>
+
+    <!-- Thư viện JS rút gọn cho xterm.js -->
+    <script src="https://jsdelivr.net"></script>
+    <script src="https://jsdelivr.net"></script>
+
+    <script>
+        // Hàm chuyển đổi giữa 2 tab
+        function switchTab(tabId, btnElement) {
+            document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            
+            document.getElementById(tabId).classList.add('active');
+            btnElement.classList.add('active');
+
+            if (tabId === 'terminal') {
+                fitAddon.fit();
+            }
+        }
+
+        // Khởi tạo giao diện xterm.js
+        const term = new Terminal({
+            cursorBlink: true,
+            theme: {
+                background: '#000000',
+                foreground: '#f0f0f0'
+            },
+            fontFamily: 'Consolas, "Courier New", monospace',
+            fontSize: 14
+        });
+
+        const fitAddon = new FitAddon.FitAddon();
+        term.loadAddon(fitAddon);
+        term.open(document.getElementById('terminal-container'));
+        fitAddon.fit();
+
+        term.writeln('\x1b[1;32mSẵn sàng kết nối tới root@23.95.31.196 (Port: 45860)\x1b[0m');
+        term.writeln('Bấm nút "Kết nối SSH" màu xanh ở phía trên để bắt đầu...\r\n');
+
+        let socket = null;
+
+        // Hàm kết nối WebSocket tới Server trung gian
+        function connectSSH() {
+            const wsUrl = document.getElementById('ws-url').value;
+            const host = document.getElementById('ssh-host').value;
+            const port = parseInt(document.getElementById('ssh-port').value, 10);
+            const username = document.getElementById('ssh-user').value;
+            const password = document.getElementById('ssh-pass').value;
+
+            if (socket) {
+                socket.close();
+            }
+
+            term.writeln(`\x1b[33mĐang kết nối tới cầu nối WebSocket (${wsUrl})...\x1b[0m`);
+
+            try {
+                socket = new WebSocket(wsUrl);
+
+                socket.onopen = () => {
+                    term.writeln(`\x1b[32mĐã kết nối WebSocket! Đang đăng nhập SSH vào ${username}@${host}:${port}...\x1b[0m`);
+                    socket.send(JSON.stringify({
+                        type: 'auth',
+                        host: host,
+                        port: port,
+                        username: username,
+                        password: password
+                    }));
+                };
+
+                socket.onmessage = (event) => {
+                    term.write(event.data);
+                };
+
+                socket.onclose = () => {
+                    term.writeln('\r\n\x1b[31mĐã ngắt kết nối SSH.\x1b[0m');
+                };
+
+                socket.onerror = () => {
+                    term.writeln('\r\n\x1b[31mLỗi kết nối! Hãy đảm bảo dịch vụ cầu nối WebSocket (cổng 8080) đang chạy trên VPS.\x1b[0m');
+                };
+
+                // Gửi dữ liệu gõ từ bàn phím lên server
+                term.onData(data => {
+                    if (socket && socket.readyState === WebSocket.OPEN) {
+                        socket.send(JSON.stringify({ type: 'data', data: data }));
+                    }
+                });
+
+            } catch (err) {
+                term.writeln(`\r\n\x1b[31mLỗi: ${err.message}\x1b[0m`);
+            }
+        }
+
+        // Tự động điều chỉnh kích thước terminal khi thay đổi cửa sổ trình duyệt
+        window.addEventListener('resize', () => {
+            fitAddon.fit();
+        });
+    </script>
+</body>
+</html>
